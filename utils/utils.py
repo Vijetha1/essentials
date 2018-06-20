@@ -51,3 +51,93 @@ def mergeHdf5Files(listOfFilesToMerge, nameOfNewFile):
 		fNew.create_dataset(listOfFilesToMerge[i][1], data=data)
 		del data
 	fNew.close()
+
+
+def oneHotVectors(x):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	if np.max(x) == 0:
+		raise AssertionError()
+	m = max(x.shape)
+	n = np.max(x)
+	y = np.zeros((m, n))
+	x = np.reshape((m, ))
+	y[np.arange(m), x] = 1
+	return y
+
+def computemAP(queryHashes, databaseHashes, groundTruthSimilarity):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	hammingDist, hammingRank = calcHammingRank(queryHashes, databaseHashes)
+	[Q, N] = hammingRank.shape
+	pos = np.arange(N)+1
+	MAP = 0
+	numSucc = 0
+	for i in range(Q):
+		ngb = groundTruthSimilarity[i, np.asarray(hammingRank[i,:], dtype='int32')]
+		nRel = np.sum(ngb)
+		if nRel > 0:
+			prec = np.divide(np.cumsum(ngb), pos)
+			#prec = prec[0:5000]
+			#pdb.set_trace()
+			#ap = np.mean(prec[np.asarray(ngb[0:5000], dtype='bool')])
+			prec = prec
+			ap = np.mean(prec[np.asarray(ngb, dtype='bool')])
+			MAP = MAP + ap
+			numSucc = numSucc + 1
+	MAP = float(MAP)/numSucc
+	return MAP
+
+
+def computeSimilarity(queryLabels, databaseLabels, typeOfData='singleLabelled'):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	groundTruthSimilarityMatrix = np.zeros((queryLabels.shape[0], databaseLabels.shape[0]))
+	if typeOfData=='singleLabelled':
+		for i in range(queryLabels.shape[0]):
+			groundTruthSimilarityMatrix[i,:] = queryLabels[i] == databaseLabels
+	elif typeOfData=='multiLabelled':
+		for i in range(queryLabels.shape[0]):
+			curQue = queryLabels[i][:]
+			if sum(curQue) != 0:
+				threshold = 1
+				sim = np.sum(np.logical_and(curQue, databaseLabels), axis=-1)
+				den = np.sum(np.logical_or(curQue, databaseLabels), axis=-1)
+				groundTruthSimilarityMatrix[i][np.where(sim >= threshold)[0]] = 1:
+	groundTruthSimilarityMatrix = np.asarray(groundTruthSimilarityMatrix, dtype='float32')
+	return groundTruthSimilarityMatrix
+
+
+def calcHammingRank(queryHashes, databaseHashes):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	hammingDist = np.zeros((queryHashes.shape[0], databaseHashes.shape[0]))
+	hammingRank = np.zeros((queryHashes.shape[0], databaseHashes.shape[0]))
+	for i in range(queryHashes.shape[0]):
+		hammingDist[i] = np.reshape(np.sum(np.abs(queryHashes[i] - databaseHashes), axis=1), (databaseHashes.shape[0], ))
+		hammingRank[i] = np.argsort(hammingDist[i])
+	return hammingDist, hammingRank
