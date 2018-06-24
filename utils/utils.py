@@ -27,7 +27,7 @@ def convertLevelDbtoHdf5(sourcePath, targetPath):
 	    datum.ParseFromString(value)
 	    data.append(caffe.io.datum_to_array(datum))
 	data = np.array(data)
-	pdb.set_trace()
+	# pdb.set_trace()
 	data = np.reshape(data, (data.shape[0], data.shape[1]))
 	f = h5py.File(targetPath, 'w')
 	f.create_dataset('data', data=data)
