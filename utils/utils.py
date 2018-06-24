@@ -71,7 +71,7 @@ def oneHotVectors(x):
 	y[np.arange(m), x] = 1
 	return y
 
-def computemAP(queryHashes, databaseHashes, groundTruthSimilarity):
+def computemAP(hammingRank, groundTruthSimilarity):
 	"""
 	Desc:
 
@@ -80,7 +80,6 @@ def computemAP(queryHashes, databaseHashes, groundTruthSimilarity):
 	Outputs:
 
 	"""
-	hammingDist, hammingRank = calcHammingRank(queryHashes, databaseHashes)
 	[Q, N] = hammingRank.shape
 	pos = np.arange(N)+1
 	MAP = 0
@@ -112,6 +111,8 @@ def computeSimilarity(queryLabels, databaseLabels, typeOfData='singleLabelled'):
 	"""
 	groundTruthSimilarityMatrix = np.zeros((queryLabels.shape[0], databaseLabels.shape[0]))
 	if typeOfData=='singleLabelled':
+		queryLabels = np.reshape(queryLabels, (max(queryLabels.shape),))
+		databaseLabels = np.reshape(databaseLabels, (max(databaseLabels.shape),))
 		for i in range(queryLabels.shape[0]):
 			groundTruthSimilarityMatrix[i,:] = queryLabels[i] == databaseLabels
 	elif typeOfData=='multiLabelled':
@@ -121,7 +122,7 @@ def computeSimilarity(queryLabels, databaseLabels, typeOfData='singleLabelled'):
 				threshold = 1
 				sim = np.sum(np.logical_and(curQue, databaseLabels), axis=-1)
 				den = np.sum(np.logical_or(curQue, databaseLabels), axis=-1)
-				groundTruthSimilarityMatrix[i][np.where(sim >= threshold)[0]] = 1:
+				groundTruthSimilarityMatrix[i][np.where(sim >= threshold)[0]] = 1
 	groundTruthSimilarityMatrix = np.asarray(groundTruthSimilarityMatrix, dtype='float32')
 	return groundTruthSimilarityMatrix
 
@@ -141,3 +142,48 @@ def calcHammingRank(queryHashes, databaseHashes):
 		hammingDist[i] = np.reshape(np.sum(np.abs(queryHashes[i] - databaseHashes), axis=1), (databaseHashes.shape[0], ))
 		hammingRank[i] = np.argsort(hammingDist[i])
 	return hammingDist, hammingRank
+
+
+def prAtK(hammingDist, groundTruthSimilarity, k):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	countOrNot = np.array(hammingDist == k, dtype='int32')
+	newSim = np.multiply(groundTruthSimilarity, countOrNot)
+	countOrNot = countOrNot + 0.000001
+	prec = np.mean(np.divide(np.sum(newSim, axis=-1), np.sum(countOrNot, axis=-1)))
+	rec = np.mean(np.divide(np.sum(newSim, axis=-1), np.sum(groundTruthSimilarity, axis=-1)))
+	return (prec, rec)
+
+
+def writeCSVHeader(fileName, datasets, nBits, format='Hashing', mode='w'):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	import csv
+	if format == "Hashing":
+		with open(fileName, mode) as csvfile:
+			mywriter = csv.writer(csvfile, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
+			row = ['Approaches']
+			for ii in range(len(datasets)):
+				for jj in range((len(nBits))):
+					if jj == 0:
+						row.append(datasets[ii])
+					else:
+						row.append(' ')
+			mywriter.writerow(row)
+			row = [' ']
+			for ii in range(len(datasets)):
+				for jj in range((len(nBits))):
+					row.append(nBits[jj])
+			mywriter.writerow(row)
