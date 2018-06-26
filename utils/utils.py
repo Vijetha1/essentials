@@ -52,6 +52,17 @@ def mergeHdf5Files(listOfFilesToMerge, nameOfNewFile):
 		del data
 	fNew.close()
 
+def getRealValuedToCode(x, threshold):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	x = np.array(x>threshold, dtype='int32')
+	return x
 
 def oneHotVectors(x):
 	"""
@@ -153,9 +164,10 @@ def prAtK(hammingDist, groundTruthSimilarity, k):
 	Outputs:
 
 	"""
-	countOrNot = np.array(hammingDist == k, dtype='int32')
+	countOrNot = np.array(hammingDist <= k, dtype='int32')
 	newSim = np.multiply(groundTruthSimilarity, countOrNot)
 	countOrNot = countOrNot + 0.000001
+	#pdb.set_trace()
 	prec = np.mean(np.divide(np.sum(newSim, axis=-1), np.sum(countOrNot, axis=-1)))
 	rec = np.mean(np.divide(np.sum(newSim, axis=-1), np.sum(groundTruthSimilarity, axis=-1)))
 	return (prec, rec)
@@ -187,3 +199,67 @@ def writeCSVHeader(fileName, datasets, nBits, format='Hashing', mode='w'):
 				for jj in range((len(nBits))):
 					row.append(nBits[jj])
 			mywriter.writerow(row)
+
+
+def writeHashingResultsToCsv(results, fileName, mode, approaches, datasets, nBits, toCompute):
+	"""
+	Desc:
+
+	Args:
+
+	Outputs:
+
+	"""
+	import csv
+	with open(fileName, mode) as csvfile:
+		mywriter = csv.writer(csvfile, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
+		for z in range(len(toCompute)):
+			mywriter.writerow([toCompute[z]])
+			row = ['Approaches']
+			for ii in range(len(datasets)):
+				for jj in range((len(nBits))):
+					if jj == 0:
+						row.append(datasets[ii])
+					else:
+						row.append('-')
+			mywriter.writerow(row)
+			row = [' ']
+			for i in range(len(datasets)):
+				for j in range((len(nBits))):
+					row.append(nBits[j])
+			mywriter.writerow(row)
+			for y in range(len(approaches)):
+				row = []
+				row.append(approaches[y])
+				for x in range(len(datasets)):
+					for w in range(len(nBits)):
+						num = round(results[y, x, w, z], 4)
+						if num != -100:
+							row.append(str(num))
+						else:
+							row.append('-')
+				mywriter.writerow(row)
+			mywriter.writerow([' '])
+
+def numUniqueHashes(x):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	y = np.unique(x, axis=0)
+	return y.shape[0]
+
+def getShannonEntropy(x):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	pass
