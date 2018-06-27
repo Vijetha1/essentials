@@ -354,7 +354,7 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 		labels = np.reshape(labels, (batchSize, ))
 	else:
 		raise NotImplementedError
-
+	return labels
 
 def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
 	"""
@@ -367,8 +367,9 @@ def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 10
 		dShape =  fSrc[datasets[i]][:].shape
 		bs = np.max(dShape)
 		bsOrder = np.argmax(dShape)
+		print("Processing Dataset -"+str(datasets[i]))
+		print("Total Samples - "+str(bs))
 		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
-			print("Processing Dataset -"+str(datasets[i]))
 			if chOrder == 'channelsFirst':
 				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
 			elif chOrder == 'channelsLast':
@@ -387,9 +388,7 @@ def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 10
 				fDst[datasets[i]][j*batchSize:(j+1)*batchSize, ...] = data  # Assuming batch size always at the first dimension
 		else:
 			data = prepLabelData(fSrc[datasets[i]][:], labelSourceType, labelTargetType)
-			print("debug3")
 			fDst.create_dataset(datasets[i], data=data)
-			print("debug4")
 	fSrc.close()
 	fDst.close()
 	
@@ -414,7 +413,6 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	return resizedImages
 
 def batchSizeFirst(images):
-	print("debug1")
 	"""
 	Desc:
 
@@ -422,7 +420,6 @@ def batchSizeFirst(images):
 
 	Returns:
 	"""
-	print("debug2")
 	order = images.shape
 	bs = np.argmax(order)
 	assert len(order) == 4
@@ -526,3 +523,57 @@ def shuffleInUnison(images, labels):
 	images = images[perm]
 	labels = labels[perm]
 	return images, labels
+
+def emailSender(mystr, sendEmail=False):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+    if sendEmail:
+        import smtplib
+        fromaddr = 'vijetha.gattupalli@gmail.com'
+        toaddrs  = 'vijetha.gattupalli@gmail.com'
+        SUBJECT = "From Python Program"
+        message = """\
+        From: %s
+        To: %s
+        Subject: %s
+ 
+        %s
+        """ % (fromaddr, ", ".join(toaddrs), SUBJECT, mystr)
+        username = 'vijetha.gattupalli@gmail.com'
+        password = 'Dreamsonfire!'
+        server = smtplib.SMTP('smtp.gmail.com:587')
+        server.starttls()
+        server.login(username,password)
+        server.sendmail(fromaddr, toaddrs, message)
+        server.quit()
+
+def checkIfWeightsAreNotLost(model_1, model_2, layerList):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	for i in range(len(layerList)):
+		sameWeights = False
+		weights1 = model_1.layers[layerList[i]].get_weights()[0]
+		weights2 = model_2.layers[layerList[i]].get_weights()[0]
+		if weights1.shape != weights2.shape:
+			print("Weights Shapes did not match")
+			break
+		else:
+			totalNumberOfWeights = getTotalWeights(weights1.shape)
+			if np.sum(weights1 == weights2) != totalNumberOfWeights:
+				print("Weights are different")
+				break
+			else:
+				sameWeights = True
+	return sameWeights

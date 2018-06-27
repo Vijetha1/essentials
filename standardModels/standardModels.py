@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from customLayers import crosschannelnormalization
-from customLayers import Softmax4D
-from customLayers import splittensor
 from keras.layers import Activation
 from keras.layers import Dense
 from keras.layers import Dropout
@@ -17,10 +14,13 @@ from keras.models import Sequential
 from keras.optimizers import SGD
 import pdb
 import h5py
-import pdb
 import sys
-sys.path.insert(0, './../essentials/standardModels')
+sys.path.insert(0, './../essentials/customObjects')
+sys.path.insert(0, './../essentials/utils')
 import utils
+from customLayers import crosschannelnormalization
+from customLayers import Softmax4D
+from customLayers import splittensor
 #The below imports for vgg 19
 # from __future__ import print_function
 # from __future__ import absolute_import
