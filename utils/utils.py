@@ -350,14 +350,56 @@ def matToHdf5(srcFileName, dstFileName):
 	for i in range(len(datasets)):
 		f.create_dataset(datasets[i], data=data[datasets[i]])
 	f.close()
-	pdb.set_trace()
-	raise NotImplementedError
 
-def prepData():
+def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR'):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+	"""
+	if chOrder == 'channelsLast':
+		images = channelsFirstToLast(images)
+	elif chOrder == 'channelsFirst':
+		images = channelsLastToFirst(images)
+	images = resizedImages(images, resizeHeight, resizeWidth)
+	images = meanSubtract(images, meanSubtractOrder)
+	return images
+
+def prepLabelData(labels, sourceType='uint', targetType='uint'):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+	
+	"""
+	batchSize = max(labels.shape)
+	if sourceType== 'uint' and targetType == 'uint':
+		labels = np.reshape(labels, (batchSize, ))
+	else:
+		raise NotImplementedError
+
+
+def oneTimePreprocess(srcFileName, dstFileName, processInBatches = False):
 	"""
 	"""
-	raise NotImplementedError
-
+	fSrc = h5py.File(srcFileName, 'r')
+	fDst = h5py.File(dstFileName, 'w')
+	datasets = [key for key in fSrc.keys() if '__' not in key]
+	for i in range(len(datasets)):
+		if len(fSrc[datasets[i]][:].shape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
+			if not processInBatches:
+				data = prepImageData(fSrc[datasets[i]][:])
+			else:
+				raise NotImplementedError
+		else:
+			data = prepLabelData(fSrc[datasets[i]][:])
+		fDst.create_dataset(datasets[i], data=data)
+	fSrc.close()
+	fDst.close()
 
 def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	"""
@@ -410,7 +452,10 @@ def channelsFirstToLast(images):
 	Returns:
 
 	"""
-	images = np.transpose(images, (0, 2, 3, 1))
+	order = images.shape
+	ch = order.index(3)
+	if ch == 1:
+		images = np.transpose(images, (0, 2, 3, 1))
 	return images
 
 def channelsLastToFirst(images):
@@ -422,7 +467,10 @@ def channelsLastToFirst(images):
 	Returns:
 
 	"""
-	images = np.transpose(images, (0, 3, 1, 2))
+	order = images.shape
+	ch = order.index(3)
+	if ch == 3:
+		images = np.transpose(images, (0, 3, 1, 2))
 	return images
 
 def meanSubtract(images, sourceDataSet='IMAGENET', order='RGB'):
