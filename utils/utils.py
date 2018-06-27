@@ -2,6 +2,7 @@ import numpy as np
 import pdb
 from scipy import io
 import h5py
+from skimage.transform import resize
 # import sys
 # sys.path.insert(0, '/media/vrpg/parent/vijetha/CVPR_2018_multiHashing')
 
@@ -262,4 +263,205 @@ def getShannonEntropy(x):
 	Returns:
 
 	"""
-	pass
+	raise NotImplementedError
+
+
+def getWeightShapesFromModel(model, library='Keras'):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+
+	"""
+	pdb.set_trace()
+	weightShapes=[]
+	print("Printing From Model")
+	if library == 'Keras':
+		nLayers = len(model.layers)
+		for i in range(nLayers):
+			nParamSets = len(model.layers[i].get_weights())
+			assert nParamSets%2 == 0
+			for j in range(int(nParamSets/2)):
+				weightShapes.append([model.layers[i].get_weights()[2*j].shape, model.layers[i].get_weights()[2*j+1].shape])
+				print(weightShapes[-1])
+	return weightShapes
+
+
+def getWeightShapesFromH5(fileName):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	f = h5py.File(fileName, 'r')
+	allKeys=[k for k in f.keys()]
+	weightShapes=[]
+	print("Printing From saved weights")
+	for layerNumber in range(len(allKeys)):
+		subKeys = [k for k in f[allKeys[layerNumber]].keys()]
+		assert len(subKeys)%2 == 0
+		for i in range(int(len(subKeys)/2)):
+			weightShapes.append([f[allKeys[layerNumber]][subKeys[2*i]][:].shape, f[allKeys[layerNumber]][subKeys[2*i+1]][:].shape])
+			print(weightShapes[-1])
+	f.close()
+	return weightShapes
+
+
+def convertThtoTf(srcFileName, dstFileName):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	from keras.utils.conv_utils import convert_kernel
+	from shutil import copyfile
+	copyfile(srcFileName, dstFileName)
+	f = h5py.File(dstFileName, 'r+')
+	allKeys=[k for k in f.keys()]
+	for layerNumber in range(len(allKeys)):
+		if 'conv' in allKeys[layerNumber]:
+			subKeys = [k for k in f[allKeys[layerNumber]].keys()]
+			for i in range(len(subKeys)):
+				original_w = f[allKeys[layerNumber]][subKeys[i]][:]
+				if i == 0:
+					abcd = f[allKeys[layerNumber]][subKeys[0]]
+					del f[allKeys[layerNumber]][subKeys[0]]
+					original_w = np.transpose(convert_kernel(original_w), (2, 3, 1, 0))
+					data = f[allKeys[layerNumber]].create_dataset(subKeys[i], original_w.shape)
+					data = original_w
+	f.close()
+
+
+def matToHdf5(srcFileName, dstFileName):
+	"""
+	"""
+	data = io.loadmat(srcFileName)
+	datasets = [key for key in data.keys() if '__' not in key]
+	f = h5py.File(dstFileName, 'w')
+	for i in range(len(datasets)):
+		f.create_dataset(datasets[i], data=data[datasets[i]])
+	f.close()
+	pdb.set_trace()
+	raise NotImplementedError
+
+def prepData():
+	"""
+	"""
+	raise NotImplementedError
+
+
+def resizeImages(images, resizeHeight=256, resizeWidth = 256):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+	"""
+	order = images.shape
+	ch = order.index(3)
+	if ch == 1:
+		images = channelsFirstToLast(images)
+	resizedImages = np.zeros((images.shape[0], resizeHeight, resizeWidth, 3))
+	for i in range(resizedImages.shape[0]):
+		resizedImages[i,:,:,:] = resize(images[i], (resizeHeight, resizeWidth))
+	if ch == 1:
+		resizedImages = channelsLastToFirst(resizedImages)
+	return resizedImages
+
+
+def cropImages(images, cropHeight=227, cropWidth=227):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	order = images.shape
+	ch = order.index(3)
+	if ch == 1:
+		images = channelsFirstToLast(images)
+	croppedImages = np.zeros((images.shape[0], cropHeight, cropWidth, 3))
+	for i in range(croppedImages.shape[0]):
+		randX = np.random.randint(images.shape[1]-cropHeight)
+		randY = np.random.randint(images.shape[2]-cropWidth)
+		croppedImages[i,:,:,:] = images[i,randX:randX+cropHeight,randY:randY+cropWidth,:]
+	if ch == 1:
+		croppedImages = channelsLastToFirst(croppedImages)
+	return croppedImages
+
+def channelsFirstToLast(images):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	images = np.transpose(images, (0, 2, 3, 1))
+	return images
+
+def channelsLastToFirst(images):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	images = np.transpose(images, (0, 3, 1, 2))
+	return images
+
+def meanSubtract(images, sourceDataSet='IMAGENET', order='RGB'):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	chOrder = images.shape
+	ch = chOrder.index(3)	
+	if ch == 1:
+		images = channelsFirstToLast(images)
+	if order == 'RGB':
+		#in RGB order
+	    images[:, :, :, 0] -= 123.68
+	    images[:, :, :, 1] -= 116.779
+	    images[:, :, :, 2] -= 103.939 # values copied from https://github.com/heuritech/convnets-keras/blob/master/convnetskeras/convnets.py
+	elif order == 'BGR':
+	    images[:, :, :, 0] -= 103.939
+	    images[:, :, :, 1] -= 116.779
+	    images[:, :, :, 2] -= 123.68 # values copied from https://github.com/heuritech/convnets-keras/blob/master/convnetskeras/convnets.py
+	if ch == 1:
+		images = channelsLastToFirst(images)
+	return images
+
+
+def shuffleInUnison(images, labels):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	perm = np.random.permutation(images.shape[0])
+	images = images[perm]
+	labels = labels[perm]
+	return images, labels

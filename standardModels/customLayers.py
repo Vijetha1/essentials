@@ -13,19 +13,22 @@ def crosschannelnormalization(alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
     """
 
     def f(X):
-
-        b, ch, r, c = X.shape
+        # pdb.set_trace()
+        b, r, c, ch = X.shape
         half = n // 2
         square = K.square(X)
         #extra_channels = K.spatial_2d_padding(K.permute_dimensions(square, (0, 2, 3, 1))
         #                                      , ((0, half), (0, half)))
         extra_channels = K.spatial_2d_padding(K.permute_dimensions(square, (0, 2, 3, 1)), padding=((0, 0), (half, half)))
         extra_channels = K.permute_dimensions(extra_channels, (0, 3, 1, 2))
+
+        # extra_channels = K.spatial_2d_padding(square, padding=((0, half), (0, half)))
+        # extra_channels = K.permute_dimensions(extra_channels, (0, 3, 1, 2))
         scale = k
         for i in range(n):
             #pdb.set_trace()
             #print(extra_channels[:, i:i + ch, :, :])
-            scale += alpha * extra_channels[:, i:i + ch, :, :]
+            scale += alpha * extra_channels[:, :, :, i:i + ch]
             #pdb.set_trace()
         scale = scale ** beta
         return X / scale
@@ -33,7 +36,7 @@ def crosschannelnormalization(alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
     return Lambda(f, output_shape=lambda input_shape: input_shape, **kwargs)
 
 
-def splittensor(axis=1, ratio_split=1, id_split=0, **kwargs):
+def splittensor(axis=3, ratio_split=1, id_split=0, **kwargs):
     def f(X):
         div = X.shape[axis] // ratio_split
 

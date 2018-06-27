@@ -18,7 +18,9 @@ from keras.optimizers import SGD
 import pdb
 import h5py
 import pdb
-
+import sys
+sys.path.insert(0, './../essentials/standardModels')
+import utils
 #The below imports for vgg 19
 # from __future__ import print_function
 # from __future__ import absolute_import
@@ -42,7 +44,7 @@ import pdb
 # from .imagenet_utils import _obtain_input_shape
 
 def AlexNet(weights_path=None, retainTop = True):
-    inputs = Input(shape=(3, 227, 227))
+    inputs = Input(shape=(227, 227, 3))
 
     conv_1 = Conv2D(96, (11, 11), strides=(4, 4), activation='relu',
                            name='conv_1')(inputs)
@@ -51,7 +53,7 @@ def AlexNet(weights_path=None, retainTop = True):
     #pdb.set_trace()
     conv_2 = crosschannelnormalization(name='convpool_1')(conv_2)
     conv_2 = ZeroPadding2D((2, 2))(conv_2)
-    concat1 = Concatenate(axis=1, name='conv_2')
+    concat1 = Concatenate(axis=-1, name='conv_2')
     conv_2 = concat1([
                        Conv2D(128, (5, 5), activation='relu', name='conv_2_' + str(i + 1))(
                            splittensor(ratio_split=2, id_split=i)(conv_2)
@@ -63,14 +65,14 @@ def AlexNet(weights_path=None, retainTop = True):
     conv_3 = Conv2D(384, (3, 3), activation='relu', name='conv_3')(conv_3)
 
     conv_4 = ZeroPadding2D((1, 1))(conv_3)
-    concat2 = Concatenate(axis=1, name='conv_4')
+    concat2 = Concatenate(axis=-1, name='conv_4')
     conv_4 = concat2([
                        Conv2D(192, (3, 3), activation='relu', name='conv_4_' + str(i + 1))(
                            splittensor(ratio_split=2, id_split=i)(conv_4)
                        ) for i in range(2)])
 
     conv_5 = ZeroPadding2D((1, 1))(conv_4)
-    concat3 = Concatenate(axis=1, name='conv_5')
+    concat3 = Concatenate(axis=-1, name='conv_5')
     conv_5 = concat3([
                        Conv2D(128, (3, 3), activation='relu', name='conv_5_' + str(i + 1))(
                            splittensor(ratio_split=2, id_split=i)(conv_5)
@@ -86,8 +88,16 @@ def AlexNet(weights_path=None, retainTop = True):
     prediction = Activation('softmax', name='softmax')(dense_3)
     
     tempModel = Model(inputs=[inputs], outputs=[prediction])
-    
+    # pdb.set_trace()
+    # tempModel.summary()
+    # abcd = utils.getWeightShapesFromModel(tempModel)
+    # efgh = utils.getWeightShapesFromH5('./../essentials/standardModels/pretrainedWeights/alexnet_weights.h5')
+    # utils.convertThtoTf('./../essentials/standardModels/pretrainedWeights/alexnet_weights.h5', './../essentials/standardModels/pretrainedWeights/alexnet_weights_tf.h5')
+    # abcd = utils.getWeightShapesFromModel(tempModel)
+    # efgh = utils.getWeightShapesFromH5('./../essentials/standardModels/pretrainedWeights/alexnet_weights_tf.h5')
+    # pdb.set_trace()
     tempModel.load_weights(weights_path)
+    # print("Done")
     if not retainTop:
       model = Model(inputs=[inputs], outputs=[dense_2])
       lastLayer = dense_2
