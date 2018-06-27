@@ -174,34 +174,6 @@ def prAtK(hammingDist, groundTruthSimilarity, k):
 	return (prec, rec)
 
 
-def writeCSVHeader(fileName, datasets, nBits, format='Hashing', mode='w'):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
-	import csv
-	if format == "Hashing":
-		with open(fileName, mode) as csvfile:
-			mywriter = csv.writer(csvfile, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-			row = ['Approaches']
-			for ii in range(len(datasets)):
-				for jj in range((len(nBits))):
-					if jj == 0:
-						row.append(datasets[ii])
-					else:
-						row.append(' ')
-			mywriter.writerow(row)
-			row = [' ']
-			for ii in range(len(datasets)):
-				for jj in range((len(nBits))):
-					row.append(nBits[jj])
-			mywriter.writerow(row)
-
-
 def writeHashingResultsToCsv(results, fileName, mode, approaches, datasets, nBits, toCompute):
 	"""
 	Desc:
@@ -359,11 +331,12 @@ def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=
 
 	Returns:
 	"""
+	images = batchSizeFirst(images)
 	if chOrder == 'channelsLast':
 		images = channelsFirstToLast(images)
 	elif chOrder == 'channelsFirst':
 		images = channelsLastToFirst(images)
-	images = resizedImages(images, resizeHeight, resizeWidth)
+	images = resizeImages(images, resizeHeight, resizeWidth)
 	images = meanSubtract(images, meanSubtractOrder)
 	return images
 
@@ -383,23 +356,43 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 		raise NotImplementedError
 
 
-def oneTimePreprocess(srcFileName, dstFileName, processInBatches = False):
+def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
 	"""
 	"""
+
 	fSrc = h5py.File(srcFileName, 'r')
 	fDst = h5py.File(dstFileName, 'w')
 	datasets = [key for key in fSrc.keys() if '__' not in key]
 	for i in range(len(datasets)):
-		if len(fSrc[datasets[i]][:].shape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
-			if not processInBatches:
-				data = prepImageData(fSrc[datasets[i]][:])
-			else:
-				raise NotImplementedError
+		dShape =  fSrc[datasets[i]][:].shape
+		bs = np.max(dShape)
+		bsOrder = np.argmax(dShape)
+		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
+			print("Processing Dataset -"+str(datasets[i]))
+			if chOrder == 'channelsFirst':
+				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
+			elif chOrder == 'channelsLast':
+				fDst.create_dataset(datasets[i], (bs, resizeHeight, resizeWidth, 3))
+			nBatches = int(bs/batchSize)
+			for j in range(nBatches):
+				if printInfo:
+					print("# processed images - "+str(j*batchSize))
+				if bsOrder == 3:
+					image = fSrc[datasets[i]][:,:,:,j*batchSize:(j+1)*batchSize]
+				elif bsOrder == 0:
+					image = fSrc[datasets[i]][j*batchSize:(j+1)*batchSize,:,:,:]
+				if len(image.shape) != 4:
+					image = np.expand_dims(image, axis=bsOrder)
+				data = prepImageData(image, chOrder, resizeHeight, resizeWidth, meanSubtractOrder)
+				fDst[datasets[i]][j*batchSize:(j+1)*batchSize, ...] = data  # Assuming batch size always at the first dimension
 		else:
-			data = prepLabelData(fSrc[datasets[i]][:])
-		fDst.create_dataset(datasets[i], data=data)
+			data = prepLabelData(fSrc[datasets[i]][:], labelSourceType, labelTargetType)
+			print("debug3")
+			fDst.create_dataset(datasets[i], data=data)
+			print("debug4")
 	fSrc.close()
 	fDst.close()
+	
 
 def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	"""
@@ -420,6 +413,26 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 		resizedImages = channelsLastToFirst(resizedImages)
 	return resizedImages
 
+def batchSizeFirst(images):
+	print("debug1")
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+	"""
+	print("debug2")
+	order = images.shape
+	bs = np.argmax(order)
+	assert len(order) == 4
+	if bs == 3:
+		images = np.transpose(images, (3, 0, 1, 2))
+	elif bs == 0:
+		pass
+	else:
+		raise NotImplementedError
+	return images
 
 def cropImages(images, cropHeight=227, cropWidth=227):
 	"""
