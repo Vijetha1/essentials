@@ -533,25 +533,25 @@ def emailSender(mystr, sendEmail=False):
 	Returns:
 
 	"""
-    if sendEmail:
-        import smtplib
-        fromaddr = 'vijetha.gattupalli@gmail.com'
-        toaddrs  = 'vijetha.gattupalli@gmail.com'
-        SUBJECT = "From Python Program"
-        message = """\
-        From: %s
-        To: %s
-        Subject: %s
- 
-        %s
-        """ % (fromaddr, ", ".join(toaddrs), SUBJECT, mystr)
-        username = 'vijetha.gattupalli@gmail.com'
-        password = 'Dreamsonfire!'
-        server = smtplib.SMTP('smtp.gmail.com:587')
-        server.starttls()
-        server.login(username,password)
-        server.sendmail(fromaddr, toaddrs, message)
-        server.quit()
+	if sendEmail:
+		import smtplib
+		fromaddr = 'vijetha.gattupalli@gmail.com'
+		toaddrs  = 'vijetha.gattupalli@gmail.com'
+		SUBJECT = "From Python Program"
+		message = """\
+		From: %s
+		To: %s
+		Subject: %s
+
+		%s
+		""" % (fromaddr, ", ".join(toaddrs), SUBJECT, mystr)
+		username = 'vijetha.gattupalli@gmail.com'
+		password = 'Dreamsonfire!'
+		server = smtplib.SMTP('smtp.gmail.com:587')
+		server.starttls()
+		server.login(username,password)
+		server.sendmail(fromaddr, toaddrs, message)
+		server.quit()
 
 def checkIfWeightsAreNotLost(model_1, model_2, layerList):
 	"""
@@ -577,3 +577,17 @@ def checkIfWeightsAreNotLost(model_1, model_2, layerList):
 			else:
 				sameWeights = True
 	return sameWeights
+
+def getTotalWeights(weightsShape):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	totalWeights = 1
+	for i in range(len(weightsShape)):
+		totalWeights = totalWeights*weightsShape[i]
+	return totalWeights
