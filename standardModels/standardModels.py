@@ -107,7 +107,7 @@ def AlexNet(weights_path=None, retainTop = True):
     firstLayer = inputs
     return model, firstLayer, lastLayer
 
-def vgg19(weights_path='./pretrainedWeights/vgg19_weights_th_dim_ordering_th_kernels.h5', retainTop = False):
+def vgg19(weights_path='./../../../essentials/standardModels/pretrainedWeights/vgg19_weights_th_dim_ordering_tf_kernels.h5', retainTop = False):
     # -*- coding: utf-8 -*-
     """VGG19 model for Keras.
     # Reference
@@ -193,7 +193,7 @@ def vgg19(weights_path='./pretrainedWeights/vgg19_weights_th_dim_ordering_th_ker
     #     else:
     #         img_input = input_tensor
     classes = 1000
-    img_input = Input(shape=(3, 227, 227))
+    img_input = Input(shape=(227, 227, 3))
     # Block 1
     conv_1 = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1')(img_input)
     conv_2 = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(conv_1)

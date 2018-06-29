@@ -65,7 +65,7 @@ def getRealValuedToCode(x, threshold):
 	x = np.array(x>threshold, dtype='int32')
 	return x
 
-def oneHotVectors(x):
+def oneHotVectors(x, n):
 	"""
 	Desc:
 
@@ -74,12 +74,13 @@ def oneHotVectors(x):
 	Outputs:
 
 	"""
+	# pdb.set_trace()
 	if np.max(x) == 0:
 		raise AssertionError()
 	m = max(x.shape)
-	n = np.max(x)
+	# n = np.max(x)
 	y = np.zeros((m, n))
-	x = np.reshape((m, ))
+	x = np.reshape(x, (m, ))
 	y[np.arange(m), x] = 1
 	return y
 
@@ -248,7 +249,7 @@ def getWeightShapesFromModel(model, library='Keras'):
 
 
 	"""
-	pdb.set_trace()
+	# pdb.set_trace()
 	weightShapes=[]
 	print("Printing From Model")
 	if library == 'Keras':
@@ -307,6 +308,7 @@ def convertThtoTf(srcFileName, dstFileName):
 				if i == 0:
 					abcd = f[allKeys[layerNumber]][subKeys[0]]
 					del f[allKeys[layerNumber]][subKeys[0]]
+					pdb.set_trace()
 					original_w = np.transpose(convert_kernel(original_w), (2, 3, 1, 0))
 					data = f[allKeys[layerNumber]].create_dataset(subKeys[i], original_w.shape)
 					data = original_w
@@ -316,6 +318,7 @@ def convertThtoTf(srcFileName, dstFileName):
 def matToHdf5(srcFileName, dstFileName):
 	"""
 	"""
+	# pdb.set_trace()
 	data = io.loadmat(srcFileName)
 	datasets = [key for key in data.keys() if '__' not in key]
 	f = h5py.File(dstFileName, 'w')
@@ -331,6 +334,7 @@ def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=
 
 	Returns:
 	"""
+	# pdb.set_trace()
 	images = batchSizeFirst(images)
 	if chOrder == 'channelsLast':
 		images = channelsFirstToLast(images)
@@ -352,6 +356,8 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 	batchSize = max(labels.shape)
 	if sourceType== 'uint' and targetType == 'uint':
 		labels = np.reshape(labels, (batchSize, ))
+	elif sourceType == 'oneHot' and targetType == 'uint':
+		labels = np.array(np.argmax(labels, axis=-1), dtype='int32')
 	else:
 		raise NotImplementedError
 	return labels
@@ -359,7 +365,7 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
 	"""
 	"""
-
+	# pdb.set_trace()
 	fSrc = h5py.File(srcFileName, 'r')
 	fDst = h5py.File(dstFileName, 'w')
 	datasets = [key for key in fSrc.keys() if '__' not in key]
@@ -370,6 +376,7 @@ def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 10
 		print("Processing Dataset -"+str(datasets[i]))
 		print("Total Samples - "+str(bs))
 		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
+			# pdb.set_trace()
 			if chOrder == 'channelsFirst':
 				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
 			elif chOrder == 'channelsLast':
@@ -401,6 +408,7 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 
 	Returns:
 	"""
+	# pdb.set_trace()
 	order = images.shape
 	ch = order.index(3)
 	if ch == 1:
@@ -408,6 +416,9 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	resizedImages = np.zeros((images.shape[0], resizeHeight, resizeWidth, 3))
 	for i in range(resizedImages.shape[0]):
 		resizedImages[i,:,:,:] = resize(images[i], (resizeHeight, resizeWidth))
+	# pdb.set_trace()
+	if np.max(resizedImages) <= 1:
+		resizedImages = 255.0*resizedImages
 	if ch == 1:
 		resizedImages = channelsLastToFirst(resizedImages)
 	return resizedImages
@@ -591,3 +602,12 @@ def getTotalWeights(weightsShape):
 	for i in range(len(weightsShape)):
 		totalWeights = totalWeights*weightsShape[i]
 	return totalWeights
+
+def computeAccuracy(predictions, groundTruths):
+	"""
+	"""
+	# pdb.set_trace()
+	predictions = prepLabelData(predictions, sourceType='oneHot', targetType='uint')
+	groundTruths = prepLabelData(groundTruths, sourceType='uint', targetType='uint')
+	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
+	return acc
