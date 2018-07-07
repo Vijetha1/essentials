@@ -107,7 +107,7 @@ def AlexNet(weights_path=None, retainTop = True):
     firstLayer = inputs
     return model, firstLayer, lastLayer
 
-def vgg19(weights_path='./../../../essentials/standardModels/pretrainedWeights/vgg19_weights_th_dim_ordering_tf_kernels.h5', retainTop = False):
+def vgg19(weights_path='./../../../essentials/standardModels/pretrainedWeights/vgg19_weights_tf_dim_ordering_tf_kernels.h5', retainTop = False):
     # -*- coding: utf-8 -*-
     """VGG19 model for Keras.
     # Reference

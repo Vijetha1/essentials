@@ -323,7 +323,14 @@ def matToHdf5(srcFileName, dstFileName):
 	datasets = [key for key in data.keys() if '__' not in key]
 	f = h5py.File(dstFileName, 'w')
 	for i in range(len(datasets)):
-		f.create_dataset(datasets[i], data=data[datasets[i]])
+		if datasets[i] == 'B_trn':
+			f.create_dataset('train_hashes', data=data[datasets[i]])
+		elif datasets[i] == 'B_tst':
+			f.create_dataset('test_hashes', data=data[datasets[i]])
+		elif datasets[i] == 'WtrueTestTraining':
+			f.create_dataset('groundTruthSimilarity', data=data[datasets[i]])
+		else:
+			f.create_dataset(datasets[i], data=data[datasets[i]])
 	f.close()
 
 def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR'):
@@ -362,7 +369,78 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 		raise NotImplementedError
 	return labels
 
-def oneTimePreprocess(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
+def makeCIFAR10(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
+	"""
+	"""
+	# pdb.set_trace()
+	fSrc = h5py.File(srcFileName, 'r')
+	fDst = h5py.File(dstFileName, 'w')
+	datasets = [key for key in fSrc.keys() if '__' not in key]
+	for i in range(len(datasets)):
+		dShape =  fSrc[datasets[i]][:].shape
+		bs = np.max(dShape)
+		bsOrder = np.argmax(dShape)
+		print("Processing Dataset -"+str(datasets[i]))
+		print("Total Samples - "+str(bs))
+		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
+			# pdb.set_trace()
+			if chOrder == 'channelsFirst':
+				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
+			elif chOrder == 'channelsLast':
+				fDst.create_dataset(datasets[i], (bs, resizeHeight, resizeWidth, 3))
+			nBatches = int(bs/batchSize)
+			for j in range(nBatches):
+				if printInfo:
+					print("# processed images - "+str(j*batchSize))
+				if bsOrder == 3:
+					image = fSrc[datasets[i]][:,:,:,j*batchSize:(j+1)*batchSize]
+				elif bsOrder == 0:
+					image = fSrc[datasets[i]][j*batchSize:(j+1)*batchSize,:,:,:]
+				if len(image.shape) != 4:
+					image = np.expand_dims(image, axis=bsOrder)
+				data = prepImageData(image, chOrder, resizeHeight, resizeWidth, meanSubtractOrder)
+				fDst[datasets[i]][j*batchSize:(j+1)*batchSize, ...] = data  # Assuming batch size always at the first dimension
+		else:
+			data = prepLabelData(fSrc[datasets[i]][:], labelSourceType, labelTargetType)
+			fDst.create_dataset(datasets[i], data=data)
+	fSrc.close()
+	fDst.close()
+
+def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
+	"""
+	"""
+	pdb.set_trace()
+	fSrc = h5py.File(srcFile, 'r')
+	fDst = h5py.File(dstFile, 'w')
+	datasets = [key for key in fSrc.keys() if '__' not in key]
+	for i in range(len(datasets)):
+		ind = datasets[i].find('_')
+		if 'img' in datasets[i]:
+			newName = datasets[i][0:ind+1]+'data'
+			bs = fSrc[datasets[i]][:].shape[0]
+			fDst.create_dataset(newName, (bs, 256, 256, 3))
+			for j in range(int(bs/batchSize)+1):
+				if j%5 == 0:
+					print("At "+str(j))
+				data = fSrc[datasets[i]][j*batchSize:(j+1)*batchSize]
+				data = np.transpose(data, (0, 2, 3, 1))
+				fDst[newName][j*batchSize:(j+1)*batchSize, ...] = data
+			# del data
+		elif 'label' in datasets[i]:
+			newName = datasets[i][0:ind+1]+'labels'
+			data = fSrc[datasets[i]][:]
+			fDst.create_dataset(newName, data=data)
+			del data
+		elif 'vector' in datasets[i]:
+			newName = datasets[i][0:ind+1]+'vectors'
+			data = fSrc[datasets[i]][:]
+			fDst.create_dataset(newName, data=data)
+			del data
+	fDst.close()
+	fSrc.close()
+
+
+def makeNUS(srcDir, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
 	"""
 	"""
 	# pdb.set_trace()
@@ -611,3 +689,5 @@ def computeAccuracy(predictions, groundTruths):
 	groundTruths = prepLabelData(groundTruths, sourceType='uint', targetType='uint')
 	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
 	return acc
+
+

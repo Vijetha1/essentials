@@ -7,51 +7,38 @@ import utils
 import csv
 
 resultsFolder="./../hashingBaselines/results/"
-approaches = ["DSH_CVPR_2016_Caffe", "SSDH-PAMI", "ITQ", "SpH", "MLH"]
+# approaches = ["DSH_CVPR_2016_Caffe", "SSDH_PAMI_2017", "ITQ", "SpH", "MLH"]
+approaches = ["SSDH_PAMI_2017", "DSH_CVPR_2016_Caffe", "AGH", "DSH", "ITQ", "LSH", "PCAH", "UDHT"]
 datasets = ["CIFAR-10", "NUS", "MIR"]
+# datasets = ["NUS"]
 nBits = [12, 24, 32, 48]
 nLevels = 3
 toCompute = ['mAP', 'prec@0', 'rec@0', 'prec@1', 'rec@1', 'prec@2', 'rec@2', 'numUniqueHashes']
 results = np.zeros((len(approaches), len(datasets), len(nBits), len(toCompute)))
 
-# from scipy import io as sio
-
-# data = sio.loadmat('/media/vijetha/DATA/vijetha/Dropbox (ASU)/CVPR_2018_multiHashing_dropbox/nus/NUSHashes16.mat')
-# trainHashes = data["galleryHashes"]
-# testHashes = data["queryHashes"]
-# trainLabels = data["galleryCls"]
-# testLabels = data["queryCls"]
-# typeOfData = 'multiLabelled'
-# groundTruthSimilarity = utils.computeSimilarity(testLabels, trainLabels, typeOfData)
-# hammingDist, hammingRank = utils.calcHammingRank(testHashes, trainHashes)
-# mAP=utils.computemAP(hammingRank, groundTruthSimilarity)
-# curRes = [mAP]
-# #pdb.set_trace()
-# for l in range(nLevels):
-# 	pre, rec = utils.prAtK(hammingDist, groundTruthSimilarity, l)
-# 	curRes.append(pre)
-# 	curRes.append(rec)
-# uHashes = utils.numUniqueHashes(trainHashes)
-# curRes.append(uHashes)
-# results[0, 0 ,0, :] = curRes
-# print(results)
-# pdb.set_trace()
 for i in range(len(approaches)):
 	for j in range(len(datasets)):
 		for p in range(len(nBits)):
 			try:
+				print(str(i)+"--"+str(j)+"--"+str(p))
+				# pdb.set_trace()
 				data = hp.File(resultsFolder+approaches[i]+'/'+datasets[j]+'/'+'codesAndLabels_'+str(nBits[p])+'.h5', 'r')
-				trainHashes = data['trainHashes'][:]
-				trainLabels = data['trainLabels'][:]
-				testHashes = data['testHashes'][:]
-				testLabels = data['testLabels'][:]
-				trainHashes = utils.getRealValuedToCode(trainHashes, 0)
-				testHashes = utils.getRealValuedToCode(testHashes, 0)
-				if datasets[j] == 'CIFAR-10':
-					typeOfData = 'singleLabelled'
-				elif datasets[j] == 'NUS':
-					typeOfData = 'multiLabelled'
-				groundTruthSimilarity = utils.computeSimilarity(testLabels, trainLabels, typeOfData)
+				ds = [key for key in data.keys() if '__' not in key]
+				trainHashes = data['train_hashes'][:]
+				testHashes = data['test_hashes'][:]
+				if len(ds) == 4:
+					trainLabels = data['train_labels'][:]
+					testLabels = data['test_labels'][:]
+					if datasets[j] == 'CIFAR-10':
+						typeOfData = 'singleLabelled'
+					elif datasets[j] == 'NUS':
+						typeOfData = 'multiLabelled'
+					groundTruthSimilarity = utils.computeSimilarity(testLabels, trainLabels, typeOfData)
+				elif len(ds) == 3:
+					groundTruthSimilarity = data['groundTruthSimilarity'][:]
+				if approaches == 'DSH_CVPR_2016_Caffe':
+					trainHashes = utils.getRealValuedToCode(trainHashes, 0)
+					testHashes = utils.getRealValuedToCode(testHashes, 0)
 				hammingDist, hammingRank = utils.calcHammingRank(testHashes, trainHashes)
 				mAP=utils.computemAP(hammingRank, groundTruthSimilarity)
 				curRes = [mAP]
@@ -60,7 +47,8 @@ for i in range(len(approaches)):
 					pre, rec = utils.prAtK(hammingDist, groundTruthSimilarity, l)
 					curRes.append(pre)
 					curRes.append(rec)
-				uHashes = utils.numUniqueHashes(trainHashes)
+				allHashes = np.concatenate((trainHashes, testHashes), axis=0)
+				uHashes = utils.numUniqueHashes(allHashes)
 				curRes.append(uHashes)
 			except:
 				curRes = [-100]*(2*nLevels+2)

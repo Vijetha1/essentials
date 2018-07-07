@@ -76,12 +76,12 @@ def dahLossDummy(y_true, y_pred):
 	curLoss = K.binary_crossentropy(S, D)
 	return curLoss
 
-def vectorLoss(m = 0.25):
+def vectorLoss(l2=1.0, m = 0.25, batch_size=50):
 	def loss(y_true, y_pred):
-		multiplier = K.ones((50, 50))-K.eye(50)
+		multiplier = K.ones((batch_size, batch_size))-K.eye(batch_size)
 		#pdb.set_trace()
 		multiplier = K.expand_dims(multiplier, axis=0)
-		multiplier = K.repeat_elements(multiplier, 50, 0)
+		multiplier = K.repeat_elements(multiplier, batch_size, 0)
 		curLoss = K.maximum((m - y_pred)*multiplier, 0.)
-		return curLoss
+		return l2*curLoss
 	return loss
