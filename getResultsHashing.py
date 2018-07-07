@@ -8,7 +8,8 @@ import csv
 
 resultsFolder="./../hashingBaselines/results/"
 # approaches = ["DSH_CVPR_2016_Caffe", "SSDH_PAMI_2017", "ITQ", "SpH", "MLH"]
-approaches = ["SSDH_PAMI_2017", "DSH_CVPR_2016_Caffe", "AGH", "DSH", "ITQ", "LSH", "PCAH", "UDHT"]
+# approaches = ["SSDH_PAMI_2017", "DSH_CVPR_2016_Caffe", "AGH", "DSH", "ITQ", "LSH", "PCAH", "UDHT"]
+approaches = ["UDHT"]
 datasets = ["CIFAR-10", "NUS", "MIR"]
 # datasets = ["NUS"]
 nBits = [12, 24, 32, 48]
@@ -20,7 +21,7 @@ for i in range(len(approaches)):
 	for j in range(len(datasets)):
 		for p in range(len(nBits)):
 			try:
-				print(str(i)+"--"+str(j)+"--"+str(p))
+				print(str(approaches[i])+"--"+str(datasets[j])+"--"+str(nBits[p]))
 				# pdb.set_trace()
 				data = hp.File(resultsFolder+approaches[i]+'/'+datasets[j]+'/'+'codesAndLabels_'+str(nBits[p])+'.h5', 'r')
 				ds = [key for key in data.keys() if '__' not in key]
@@ -40,7 +41,7 @@ for i in range(len(approaches)):
 					trainHashes = utils.getRealValuedToCode(trainHashes, 0)
 					testHashes = utils.getRealValuedToCode(testHashes, 0)
 				hammingDist, hammingRank = utils.calcHammingRank(testHashes, trainHashes)
-				mAP=utils.computemAP(hammingRank, groundTruthSimilarity)
+				mAP=utils.computemAP(hammingRank, groundTruthSimilarity, trackPrec=True)
 				curRes = [mAP]
 				#pdb.set_trace()
 				for l in range(nLevels):
@@ -49,6 +50,9 @@ for i in range(len(approaches)):
 					curRes.append(rec)
 				allHashes = np.concatenate((trainHashes, testHashes), axis=0)
 				uHashes = utils.numUniqueHashes(allHashes)
+				hashHist = utils.getAvgHashHistogram(hammingDist) 
+				# [ 9151543. 11422947. 11906292. 12862186. 19113238. 18151812. 25886490. 18146234. 21562496. 23541410. 20030515.  8224837.]
+				print(hashHist)
 				curRes.append(uHashes)
 			except:
 				curRes = [-100]*(2*nLevels+2)

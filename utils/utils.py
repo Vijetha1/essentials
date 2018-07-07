@@ -84,7 +84,7 @@ def oneHotVectors(x, n):
 	y[np.arange(m), x] = 1
 	return y
 
-def computemAP(hammingRank, groundTruthSimilarity):
+def computemAP(hammingRank, groundTruthSimilarity, trackPrec = False):
 	"""
 	Desc:
 
@@ -97,19 +97,24 @@ def computemAP(hammingRank, groundTruthSimilarity):
 	pos = np.arange(N)+1
 	MAP = 0
 	numSucc = 0
+	if trackPrec:
+		rareClsVsPrec = []
 	for i in range(Q):
 		ngb = groundTruthSimilarity[i, np.asarray(hammingRank[i,:], dtype='int32')]
 		nRel = np.sum(ngb)
 		if nRel > 0:
 			prec = np.divide(np.cumsum(ngb), pos)
 			#prec = prec[0:5000]
-			#pdb.set_trace()
+			# pdb.set_trace()
 			#ap = np.mean(prec[np.asarray(ngb[0:5000], dtype='bool')])
 			prec = prec
 			ap = np.mean(prec[np.asarray(ngb, dtype='bool')])
 			MAP = MAP + ap
 			numSucc = numSucc + 1
+			rareClsVsPrec.append((nRel, ap))
 	MAP = float(MAP)/numSucc
+	import scipy.io as sio 
+	sio.savemat('rareClsVsPrec.mat',{'rareClsVsPrec':rareClsVsPrec})
 	return MAP
 
 
@@ -238,6 +243,33 @@ def getShannonEntropy(x):
 	"""
 	raise NotImplementedError
 
+def getAvgHashHistogram(hammingDist, nBits=12):
+	"""
+	Desc:
+
+	Args:
+
+	Returns:
+
+	"""
+	finalHist = np.zeros((nBits,))
+	for i in range(hammingDist.shape[0]):
+		# pdb.set_trace()
+		finalHist = finalHist + np.histogram(hammingDist[i,:], nBits)[0]
+	return finalHist
+
+def getCosineSimilarity(x, batchSize=50):
+	from scipy.spatial.distance import cdist
+	distances = np.zeros((x.shape[0], x.shape[0]))
+	for i in range(int(x.shape[0]/batchSize)):
+		print(i)
+		for j in range(int(x.shape[0]/batchSize)):
+			if np.sum(distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]) == 0:
+				dst = cdist(x[i*batchSize:(i+1)*batchSize] , x[j*batchSize:(j+1)*batchSize] ,  'cosine')
+				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = dst
+			else:
+				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]
+	return distances
 
 def getWeightShapesFromModel(model, library='Keras'):
 	"""
@@ -689,5 +721,6 @@ def computeAccuracy(predictions, groundTruths):
 	groundTruths = prepLabelData(groundTruths, sourceType='uint', targetType='uint')
 	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
 	return acc
+
 
 
