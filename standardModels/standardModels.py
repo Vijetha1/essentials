@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
+import os
+os.environ['PYTHONHASHSEED'] = '0'
 import numpy as np
+np.random.seed(42)
+import random as rn
+rn.seed(12345)
+import tensorflow as tf
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+import keras.backend as K
+tf.set_random_seed(1234)
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
 from keras.layers import Activation
 from keras.layers import Dense
 from keras.layers import Dropout

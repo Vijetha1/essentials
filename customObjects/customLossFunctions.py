@@ -1,6 +1,17 @@
-import keras
-import keras.backend as K
+import os
+os.environ['PYTHONHASHSEED'] = '0'
 import numpy as np
+np.random.seed(42)
+import random as rn
+rn.seed(12345)
+import tensorflow as tf
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+import keras.backend as K
+tf.set_random_seed(1234)
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
+import keras
 import pdb
 
 def catCrossEntr(l1=1):
@@ -47,7 +58,7 @@ def contrastive(l2 = 1.0, m = 3.0):
 		beta = K.sum(K.sum(y_true))/total
 		#pdb.set_trace()
 		#print(beta)
-		curLoss = l2*(S*(1-beta)*K.square(D) + (1-S)*beta*K.square(K.maximum(0, m - D)))
+		curLoss = l2*(S*(1.0-beta)*K.square(D) + (1.0-S)*beta*K.square(K.maximum(0.0, m - D)))
 		return curLoss
 	return loss
 

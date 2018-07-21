@@ -1,8 +1,13 @@
 import numpy as np
+np.random.seed(42)
+import random as rn
+rn.seed(12345)
+
 import pdb
 from scipy import io
 import h5py
-from skimage.transform import resize
+# from skimage.transform import resize
+from scipy.misc import imresize as resize
 # import sys
 # sys.path.insert(0, '/media/vrpg/parent/vijetha/CVPR_2018_multiHashing')
 
@@ -111,10 +116,12 @@ def computemAP(hammingRank, groundTruthSimilarity, trackPrec = False):
 			ap = np.mean(prec[np.asarray(ngb, dtype='bool')])
 			MAP = MAP + ap
 			numSucc = numSucc + 1
-			rareClsVsPrec.append((nRel, ap))
+			if trackPrec:
+				rareClsVsPrec.append((nRel, ap))
 	MAP = float(MAP)/numSucc
-	import scipy.io as sio 
-	sio.savemat('rareClsVsPrec.mat',{'rareClsVsPrec':rareClsVsPrec})
+	if trackPrec:
+		import scipy.io as sio 
+		sio.savemat('rareClsVsPrec.mat',{'rareClsVsPrec':rareClsVsPrec})
 	return MAP
 
 
@@ -258,17 +265,18 @@ def getAvgHashHistogram(hammingDist, nBits=12):
 		finalHist = finalHist + np.histogram(hammingDist[i,:], nBits)[0]
 	return finalHist
 
-def getCosineSimilarity(x, batchSize=50):
+def getCosineSimilarity(x, batchSize=50, save=True, getFullMatrix=False):
 	from scipy.spatial.distance import cdist
-	distances = np.zeros((x.shape[0], x.shape[0]))
+	distances = np.zeros((x.shape[0], x.shape[0]), dtype='float32')
 	for i in range(int(x.shape[0]/batchSize)):
-		print(i)
+		# print(i)
 		for j in range(int(x.shape[0]/batchSize)):
 			if np.sum(distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]) == 0:
 				dst = cdist(x[i*batchSize:(i+1)*batchSize] , x[j*batchSize:(j+1)*batchSize] ,  'cosine')
 				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = dst
-			else:
+			elif getFullMatrix:
 				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]
+	# pdb.set_trace()
 	return distances
 
 def getWeightShapesFromModel(model, library='Keras'):
@@ -317,6 +325,15 @@ def getWeightShapesFromH5(fileName):
 	f.close()
 	return weightShapes
 
+def getWeightShapesFromNpyFile(fileName):
+	"""
+	"""
+	weights = np.load(fileName, encoding = 'bytes').item()
+	weightKeys = [key for key in weights.keys() if '__' not in key]
+	for i in range(len(weightKeys)):
+		curDs = weights[weightKeys[i]]
+		for j in range(len(curDs)):
+			print(curDs[j].shape)
 
 def convertThtoTf(srcFileName, dstFileName):
 	"""
@@ -365,7 +382,7 @@ def matToHdf5(srcFileName, dstFileName):
 			f.create_dataset(datasets[i], data=data[datasets[i]])
 	f.close()
 
-def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR'):
+def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', bsAxis = 0):
 	"""
 	Desc:
 
@@ -374,7 +391,7 @@ def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=
 	Returns:
 	"""
 	# pdb.set_trace()
-	images = batchSizeFirst(images)
+	images = batchSizeFirst(images, bsAxis)
 	if chOrder == 'channelsLast':
 		images = channelsFirstToLast(images)
 	elif chOrder == 'channelsFirst':
@@ -382,6 +399,18 @@ def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=
 	images = resizeImages(images, resizeHeight, resizeWidth)
 	images = meanSubtract(images, meanSubtractOrder)
 	return images
+
+def im2Arr(path, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR'):
+	# pdb.set_trace()
+	import cv2
+	try:
+		image = cv2.imread(path)
+		image = np.expand_dims(image, axis=0)
+		image = prepImageData(image, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR')
+		return image
+	except:
+		# print("skipped")
+		return None
 
 def prepLabelData(labels, sourceType='uint', targetType='uint'):
 	"""
@@ -430,7 +459,7 @@ def makeCIFAR10(srcFileName, dstFileName, printInfo = True, batchSize = 1000, ch
 					image = fSrc[datasets[i]][j*batchSize:(j+1)*batchSize,:,:,:]
 				if len(image.shape) != 4:
 					image = np.expand_dims(image, axis=bsOrder)
-				data = prepImageData(image, chOrder, resizeHeight, resizeWidth, meanSubtractOrder)
+				data = prepImageData(image, chOrder, resizeHeight, resizeWidth, meanSubtractOrder, bsOrder)
 				fDst[datasets[i]][j*batchSize:(j+1)*batchSize, ...] = data  # Assuming batch size always at the first dimension
 		else:
 			data = prepLabelData(fSrc[datasets[i]][:], labelSourceType, labelTargetType)
@@ -446,6 +475,7 @@ def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
 	fDst = h5py.File(dstFile, 'w')
 	datasets = [key for key in fSrc.keys() if '__' not in key]
 	for i in range(len(datasets)):
+		print("At dataset "+str(datasets[i]))
 		ind = datasets[i].find('_')
 		if 'img' in datasets[i]:
 			newName = datasets[i][0:ind+1]+'data'
@@ -472,7 +502,7 @@ def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
 	fSrc.close()
 
 
-def makeNUS(srcDir, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
+def makeNUS(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
 	"""
 	"""
 	# pdb.set_trace()
@@ -509,6 +539,8 @@ def makeNUS(srcDir, dstFileName, printInfo = True, batchSize = 1000, chOrder='ch
 	fSrc.close()
 	fDst.close()
 	
+def getTagMatrix(excelFileName):
+	raise NotImplementedError
 
 def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	"""
@@ -533,7 +565,7 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 		resizedImages = channelsLastToFirst(resizedImages)
 	return resizedImages
 
-def batchSizeFirst(images):
+def batchSizeFirst(images, bs=0):
 	"""
 	Desc:
 
@@ -542,7 +574,7 @@ def batchSizeFirst(images):
 	Returns:
 	"""
 	order = images.shape
-	bs = np.argmax(order)
+	# bs = np.argmax(order)
 	assert len(order) == 4
 	if bs == 3:
 		images = np.transpose(images, (3, 0, 1, 2))
@@ -722,5 +754,92 @@ def computeAccuracy(predictions, groundTruths):
 	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
 	return acc
 
+def loadJsonFile(fileName):
+	import json
+	f = open(fileName, 'r')
+	# pdb.set_trace()
+	allData = json.load(f)
+	f.close()
+	return allData
 
+def getTagVectorsForEachImage(data, imId=None, ind=None):
+	# pdb.set_trace()
+	if imId != None:
+		ind = [i for i,x in enumerate(data) if x[0] == imId]
+	elif ind != None:
+		ind = ind
+	else:
+		ind = np.random.randint(len(data))
+	vecs = data[ind][2]
+	vecs = np.asarray(vecs)
+	return vecs
 
+def getSvd(S):
+	import numpy.linalg as la
+	try:
+		u, e, v = la.svd(S, full_matrices=True)
+	except:
+		# import math
+		# pdb.set_trace()
+		# if np.isnan(S):
+		# print("True")
+		u=0
+		e=0
+		v=0
+	return u, e, v
+
+def makeTrainTestSplits(imageIds, labels, labelType = 'oneHot', nImagesPerClassTrain=500, nImagesPerClassTest = 100):
+	if labelType == 'oneHot':
+		nClasses = labels.shape[1]
+	#nTotalImages = nImagesPerClassTrain + nImagesPerClassTest
+	#totalImages = np.zeros((nClasses, nTotalImages), dtype='uint32')
+	#totallabels = np.zeros((nClasses, nTotalImages, nClasses))
+	nTrainImages = int(imageIds.shape[0]*0.7)
+	trainImages = imageIds[0:nTrainImages]
+	testImages = imageIds[nTrainImages:]
+	trainLabels = labels[0:nTrainImages]
+	testLabels = labels[nTrainImages:]
+
+	trainSetImageIds = np.zeros((nClasses, nImagesPerClassTrain), dtype='uint32')
+	trainSetLabels = np.zeros((nClasses, nImagesPerClassTrain, nClasses))
+	#pdb.set_trace()
+	for i in range(nClasses):
+		consider = trainLabels[:, i] == 1
+		curImageIds = trainImages[consider]
+		curLabels = trainLabels[consider,:]
+		curImageIds, curLabels = shuffleInUnison(curImageIds, curLabels)
+		trainSetImageIds[i,:] = np.reshape(curImageIds[0:nImagesPerClassTrain], (nImagesPerClassTrain,))
+		trainSetLabels[i, :, :] = curLabels[0:nImagesPerClassTrain]
+
+	testSetImageIds = np.zeros((nClasses, nImagesPerClassTest), dtype='uint32')
+	testSetLabels = np.zeros((nClasses, nImagesPerClassTest, nClasses))
+	#pdb.set_trace()
+	for i in range(nClasses):
+		consider = testLabels[:, i] == 1
+		curImageIds = testImages[consider]
+		curLabels = testLabels[consider,:]
+		curImageIds, curLabels = shuffleInUnison(curImageIds, curLabels)
+		testSetImageIds[i,:] = np.reshape(curImageIds[0:nImagesPerClassTest], (nImagesPerClassTest,))
+		testSetLabels[i, :, :] = curLabels[0:nImagesPerClassTest]
+	
+	trainSetImageIds = np.reshape(trainSetImageIds, (nClasses*nImagesPerClassTrain,))
+	trainSetLabels = np.reshape(trainSetLabels, (nClasses*nImagesPerClassTrain, nClasses))
+	testSetImageIds = np.reshape(testSetImageIds, (nClasses*nImagesPerClassTest,))
+	testSetLabels = np.reshape(testSetLabels, (nClasses*nImagesPerClassTest,nClasses))
+	return trainSetImageIds, trainSetLabels, testSetImageIds, testSetLabels
+
+def removeOutliers(vecs, threshold):
+	meanVector = np.zeros((300,))
+	curVecs = np.asarray(vecs, dtype='float32')
+	isNotZero = np.sum(curVecs == 0, axis = -1) != 300
+	curVecs = curVecs[isNotZero]
+	S = 1.0 - getCosineSimilarity(curVecs, batchSize=1, save=False, getFullMatrix=True)
+	toConsider = np.sum(S < 0.0, axis=-1) != S.shape[0] -1 
+	toConsider = curVecs[toConsider]
+	if toConsider.shape[0] != 0:
+		meanVector = np.mean(toConsider, axis=0)
+	else:
+		meanVector = np.mean(curVecs, axis=0)
+	if np.sum(np.isnan(meanVector))!=0:
+		pdb.set_trace()
+	return meanVector
