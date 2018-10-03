@@ -688,8 +688,8 @@ def emailSender(mystr, sendEmail=False):
 	"""
 	if sendEmail:
 		import smtplib
-		fromaddr = 'vijetha.gattupalli@gmail.com'
-		toaddrs  = 'vijetha.gattupalli@gmail.com'
+		fromaddr = '****'
+		toaddrs  = '****'
 		SUBJECT = "From Python Program"
 		message = """\
 		From: %s
@@ -698,8 +698,8 @@ def emailSender(mystr, sendEmail=False):
 
 		%s
 		""" % (fromaddr, ", ".join(toaddrs), SUBJECT, mystr)
-		username = 'vijetha.gattupalli@gmail.com'
-		password = 'Dreamsonfire!'
+		username = '****'
+		password = '****'
 		server = smtplib.SMTP('smtp.gmail.com:587')
 		server.starttls()
 		server.login(username,password)
