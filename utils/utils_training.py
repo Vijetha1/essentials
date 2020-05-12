@@ -4,6 +4,7 @@ from scipy import io
 import h5py
 from scipy.misc import imresize as resize
 import pdb
+import time 
 
 np.random.seed(42)
 rn.seed(12345)
@@ -60,3 +61,26 @@ def writeHashingResultsToCsv(results, fileName, mode, approaches, datasets, nBit
 							row.append('-')
 				mywriter.writerow(row)
 			mywriter.writerow([' '])
+
+def get_progress_bar(i, n, s):
+    if n <= 10:
+        return
+    if i == 10:
+        print("PROGRESS:")
+    if i >= 10:
+        t = time.time()
+        filled_progbar = round(t-s)
+        full_progbar = round(n*(t-s)/i)
+        if full_progbar > 100:
+            quo = full_progbar//100
+            full_progbar = full_progbar//quo
+            filled_progbar = filled_progbar//quo
+        elif full_progbar > 0:
+            quo = 100/full_progbar
+            full_progbar = round(full_progbar*quo)
+            filled_progbar = round(filled_progbar*quo)
+        print('\r'+'#'*filled_progbar + '-'*(full_progbar-filled_progbar), end="")
+    elif i == 0:
+        print("still computing the ETC ...")
+    if i == n-1:
+        print(" ")

@@ -101,3 +101,84 @@ def computeAccuracy(predictions, groundTruths):
 	groundTruths = prepLabelData(groundTruths, sourceType='uint', targetType='uint')
 	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
 	return acc
+
+def find_union_nms_bw_two_sets_of_boxes(boxes_a, boxes_b):
+    new_boxes_a = [[b[0]+1.0, b[1]] for b in boxes_a]
+    new_boxes_b = boxes_b
+    m = len(new_boxes_a)
+    n = len(new_boxes_b)
+    new_boxes = new_boxes_a + new_boxes_b
+    result = non_max_suppression(new_boxes, 0.4)
+    if len(result) > m+n or len(result) < max(m, n):
+        print("Bug in find_union_nms_bw_two_sets_of_boxes!")
+        import pdb
+        pdb.set_trace()
+    ret_val = []
+    for i in range(len(result)):
+        if result[i][0] > 1.0:
+            ret_val.append(['set_A', result[i][0]-1.0, result[i][1]])
+        else:
+            ret_val.append(['set_B', result[i][0], result[i][1]])
+    return ret_val
+
+def non_max_suppression(boxes, threshold=0.3):
+    if len(boxes)==0:
+        return []
+    new_boxes = [(b[1][0], b[1][1], b[1][2], b[1][3]) for b in boxes]
+    scores = [b[0] for b in boxes]
+    scores = np.asarray(scores)
+    ixs = list(scores.argsort()[::-1])
+    pick = []
+    while len(ixs)>0:
+        b1 = new_boxes[ixs[0]]
+        pick.append(ixs[0])
+        del ixs[0]
+        other_boxes = deepcopy(ixs)
+        while len(other_boxes) > 0:
+            b2 = new_boxes[other_boxes[0]]
+            iou = per_object_iou(b1, b2)
+            if iou > threshold:
+                ixs.remove(other_boxes[0])
+            del other_boxes[0]
+    final_boxes = [[scores[i], new_boxes[i]] for i in pick]
+    return final_boxes
+
+def per_object_iou(boxA, boxB):
+    boxA = (boxA[0], boxA[1], boxA[0]+boxA[2], boxA[1]+boxA[3])
+    boxB = (boxB[0], boxB[1], boxB[0]+boxB[2], boxB[1]+boxB[3])
+    if boxes_intersect(boxA, boxB) is False:
+        return 0
+    interArea = get_intersection_area(boxA, boxB)
+    union = get_union_areas(boxA, boxB, interArea=interArea)
+    iou = interArea / union
+    assert iou >= 0
+    return iou
+    
+def boxes_intersect(boxA, boxB):
+    if boxA[0] > boxB[2]:
+        return False  # boxA is right of boxB
+    if boxB[0] > boxA[2]:
+        return False  # boxA is left of boxB
+    if boxA[3] < boxB[1]:
+        return False  # boxA is above boxB
+    if boxA[1] > boxB[3]:
+        return False  # boxA is below boxB
+    return True
+    
+def get_intersection_area(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    # intersection area
+    return (xB - xA + 1) * (yB - yA + 1)
+    
+def get_union_areas(boxA, boxB, interArea=None):
+    area_A = get_area(boxA)
+    area_B = get_area(boxB)
+    if interArea is None:
+        interArea = get_intersection_area(boxA, boxB)
+    return float(area_A + area_B - interArea)
+
+def get_area(box):
+    return (box[2] - box[0] + 1) * (box[3] - box[1] + 1)

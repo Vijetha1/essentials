@@ -4,6 +4,17 @@ from scipy import io
 import h5py
 from scipy.misc import imresize as resize
 import pdb
+import json
+import glob
+import csv
+from argparse import ArgumentParser
+import numpy as np
+from copy import deepcopy
+from PIL import Image
+import numpy as np
+from itertools import cycle
+import time
+import cv2
 
 np.random.seed(42)
 rn.seed(12345)
@@ -719,3 +730,132 @@ def getSvd(S):
 		e=0
 		v=0
 	return u, e, v
+
+def get_image(image_path): # Default is PIL format, which is RGB
+    image = Image.open(image_path)
+    (im_width, im_height) = image.size
+    # You have to put it in height, width order while reshaping
+    image = np.array(image.getdata()).reshape((im_height, im_width, 3)).astype(np.uint8) 
+    return image, im_width, im_height
+    
+def parse_csv(path, debug=False):
+    output_list = list()
+    with open(path) as csvfile:
+        reader = csv.reader(csvfile)
+        c = 0
+        for row in reader:
+            if c % 100 == 0 and debug:
+                print(c)
+            output_list.append(row)
+            c=c+1
+    return output_list
+
+def write_to_json(output_file, dict_data):
+    import json
+    with open(output_file, 'w') as fp:
+        json.dump(dict_data, fp)
+        
+def clean_image_name(im_name): 
+    start_ind = im_name.rfind('/')
+    end_ind = im_name.rfind('.')
+    im_name_new = im_name[start_ind+1:end_ind]
+    return im_name_new
+
+def load_json(input_json):
+    with open(input_json) as json_file:
+        data = json.load(json_file)
+    return data
+
+def convert_databee_format(labels):
+    im_height = 1024
+    im_width = 1024
+    outputs = []
+    for i in range(len(labels)):
+        l = load_json(labels[i])
+        r = [labels[i][-81:-4], len(l)]
+        for j in range(len(l)):
+            cur_l = l[j]['C']
+            if cur_l != "SKIP":
+                cur_b = [l[j]['R']['X1']/im_width, l[j]['R']['Y1']/im_height, (l[j]['R']['X2'] - l[j]['R']['X1'])/im_width, (l[j]['R']['Y2'] - l[j]['R']['Y1'])/im_height]
+                r = r + [cur_l, 1.0]+cur_b
+            else:
+                r[-1]=r[-1]-1
+        outputs.append(r)
+    return outputs
+
+def count_n_boxes(data):
+    n = 0
+    for i in range(len(data)):
+        n+=int(data[i][1])
+    return n 
+
+def row_to_boxes(row, width, height):
+    boxes = []
+    for i in range(int(row[1])):
+        ind = 2+6*i
+        x=int(float(row[ind+2])*width)
+        y=int(float(row[ind+3])*height)
+        w=int(float(row[ind+4])*width)
+        h=int(float(row[ind+5])*height)
+        conf = float(row[ind+1])
+        if conf > 0.5:
+            boxes.append([conf, (x, y, w, h)])
+    return boxes
+
+def clean_label_name(label):
+    try:
+        label = str(label)
+        label = ''.join(e for e in label if e.isalnum())
+        label = label.lower()
+    except:
+        pdb.set_trace()
+    return label
+
+def get_cat_id(label):
+    label = label.encode('ascii','ignore').decode('utf-8')
+    label = clean_label_name(label)
+    mapping = {1: 'microwave', 
+              2: 'oven', 
+              3: 'stove', 
+              4: 'clothwasher', 
+              5: 'refrigerator',
+              6: 'dishwasher'}
+    for k in mapping:
+        if mapping[k] == label:
+            return k
+    
+def make_mpkitchen_dataset(file_name, width=1024, height=1024):
+    from detectron2.structures import BoxMode
+    dataset_dicts = []
+    anns = parse_csv(file_name)
+    for i in range(len(anns)):
+        record={}
+        record['filename']=anns[i][0]
+        record["image_id"] = i
+        record["height"] = width
+        record["width"] = height
+        objs = []
+        for j in range(int(anns[i][1])):
+            ind = 2+6*j
+            x=int(float(anns[i][ind+2])*width)
+            y=int(float(anns[i][ind+3])*height)
+            w=int(float(anns[i][ind+4])*width)
+            h=int(float(anns[i][ind+5])*height)
+            label = get_cat_id(anns[i][ind])
+            obj = {
+                "bbox": [x, y, w, h],
+                "bbox_mode": BoxMode.XYWH_ABS,
+                "category_id": label,
+                "iscrowd": 0
+            }
+            if label != None:
+            	objs.append(obj)
+        record["annotations"] = objs
+        dataset_dicts.append(record)
+    return dataset_dicts
+    
+def write_to_csv(output_csv, rows, delimiter=","):
+    with open(output_csv, 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=delimiter)
+        writer.writerows(rows)
+        
