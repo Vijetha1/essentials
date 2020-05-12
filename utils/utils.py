@@ -10,7 +10,10 @@ import h5py
 from scipy.misc import imresize as resize
 # import sys
 # sys.path.insert(0, '/media/vrpg/parent/vijetha/CVPR_2018_multiHashing')
-
+import numpy as np
+np.random.seed(42)
+import random as rn
+rn.seed(12345)
 
 def convertLevelDbtoHdf5(sourcePath, targetPath):
 	"""
@@ -41,14 +44,6 @@ def convertLevelDbtoHdf5(sourcePath, targetPath):
 
 
 def mergeHdf5Files(listOfFilesToMerge, nameOfNewFile):
-	"""
-	Desc: 
-
-	Args:
-
-	Outputs:
-
-	"""
 	fNew = h5py.File(nameOfNewFile, 'w')
 	for i in range(len(listOfFilesToMerge)):
 		fOld = h5py.File(listOfFilesToMerge[i][0], 'r')
@@ -59,45 +54,19 @@ def mergeHdf5Files(listOfFilesToMerge, nameOfNewFile):
 	fNew.close()
 
 def getRealValuedToCode(x, threshold):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	x = np.array(x>threshold, dtype='int32')
 	return x
 
 def oneHotVectors(x, n):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
-	# pdb.set_trace()
 	if np.max(x) == 0:
 		raise AssertionError()
 	m = max(x.shape)
-	# n = np.max(x)
 	y = np.zeros((m, n))
 	x = np.reshape(x, (m, ))
 	y[np.arange(m), x] = 1
 	return y
 
 def computemAP(hammingRank, groundTruthSimilarity, trackPrec = False):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	[Q, N] = hammingRank.shape
 	pos = np.arange(N)+1
 	MAP = 0
@@ -109,9 +78,6 @@ def computemAP(hammingRank, groundTruthSimilarity, trackPrec = False):
 		nRel = np.sum(ngb)
 		if nRel > 0:
 			prec = np.divide(np.cumsum(ngb), pos)
-			#prec = prec[0:5000]
-			# pdb.set_trace()
-			#ap = np.mean(prec[np.asarray(ngb[0:5000], dtype='bool')])
 			prec = prec
 			ap = np.mean(prec[np.asarray(ngb, dtype='bool')])
 			MAP = MAP + ap
@@ -126,14 +92,6 @@ def computemAP(hammingRank, groundTruthSimilarity, trackPrec = False):
 
 
 def computeSimilarity(queryLabels, databaseLabels, typeOfData='singleLabelled'):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	groundTruthSimilarityMatrix = np.zeros((queryLabels.shape[0], databaseLabels.shape[0]))
 	if typeOfData=='singleLabelled':
 		queryLabels = np.reshape(queryLabels, (max(queryLabels.shape),))
@@ -153,14 +111,6 @@ def computeSimilarity(queryLabels, databaseLabels, typeOfData='singleLabelled'):
 
 
 def calcHammingRank(queryHashes, databaseHashes):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	hammingDist = np.zeros((queryHashes.shape[0], databaseHashes.shape[0]))
 	hammingRank = np.zeros((queryHashes.shape[0], databaseHashes.shape[0]))
 	for i in range(queryHashes.shape[0]):
@@ -170,14 +120,6 @@ def calcHammingRank(queryHashes, databaseHashes):
 
 
 def prAtK(hammingDist, groundTruthSimilarity, k):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	countOrNot = np.array(hammingDist <= k, dtype='int32')
 	newSim = np.multiply(groundTruthSimilarity, countOrNot)
 	countOrNot = countOrNot + 0.000001
@@ -188,14 +130,6 @@ def prAtK(hammingDist, groundTruthSimilarity, k):
 
 
 def writeHashingResultsToCsv(results, fileName, mode, approaches, datasets, nBits, toCompute):
-	"""
-	Desc:
-
-	Args:
-
-	Outputs:
-
-	"""
 	import csv
 	with open(fileName, mode) as csvfile:
 		mywriter = csv.writer(csvfile, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -228,37 +162,13 @@ def writeHashingResultsToCsv(results, fileName, mode, approaches, datasets, nBit
 			mywriter.writerow([' '])
 
 def numUniqueHashes(x):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	y = np.unique(x, axis=0)
 	return y.shape[0]
 
 def getShannonEntropy(x):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	raise NotImplementedError
 
 def getAvgHashHistogram(hammingDist, nBits=12):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	finalHist = np.zeros((nBits,))
 	for i in range(hammingDist.shape[0]):
 		# pdb.set_trace()
@@ -269,27 +179,15 @@ def getCosineSimilarity(x, batchSize=50, save=True, getFullMatrix=False):
 	from scipy.spatial.distance import cdist
 	distances = np.zeros((x.shape[0], x.shape[0]), dtype='float32')
 	for i in range(int(x.shape[0]/batchSize)):
-		# print(i)
 		for j in range(int(x.shape[0]/batchSize)):
 			if np.sum(distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]) == 0:
 				dst = cdist(x[i*batchSize:(i+1)*batchSize] , x[j*batchSize:(j+1)*batchSize] ,  'cosine')
 				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = dst
 			elif getFullMatrix:
 				distances[i*batchSize:(i+1)*batchSize, j*batchSize:(j+1)*batchSize] = distances[j*batchSize:(j+1)*batchSize, i*batchSize:(i+1)*batchSize]
-	# pdb.set_trace()
 	return distances
 
 def getWeightShapesFromModel(model, library='Keras'):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-
-	"""
-	# pdb.set_trace()
 	weightShapes=[]
 	print("Printing From Model")
 	if library == 'Keras':
@@ -304,14 +202,6 @@ def getWeightShapesFromModel(model, library='Keras'):
 
 
 def getWeightShapesFromH5(fileName):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	f = h5py.File(fileName, 'r')
 	allKeys=[k for k in f.keys()]
 	weightShapes=[]
@@ -326,8 +216,6 @@ def getWeightShapesFromH5(fileName):
 	return weightShapes
 
 def getWeightShapesFromNpyFile(fileName):
-	"""
-	"""
 	weights = np.load(fileName, encoding = 'bytes').item()
 	weightKeys = [key for key in weights.keys() if '__' not in key]
 	for i in range(len(weightKeys)):
@@ -336,14 +224,6 @@ def getWeightShapesFromNpyFile(fileName):
 			print(curDs[j].shape)
 
 def convertThtoTf(srcFileName, dstFileName):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	from keras.utils.conv_utils import convert_kernel
 	from shutil import copyfile
 	copyfile(srcFileName, dstFileName)
@@ -365,9 +245,6 @@ def convertThtoTf(srcFileName, dstFileName):
 
 
 def matToHdf5(srcFileName, dstFileName):
-	"""
-	"""
-	# pdb.set_trace()
 	data = io.loadmat(srcFileName)
 	datasets = [key for key in data.keys() if '__' not in key]
 	f = h5py.File(dstFileName, 'w')
@@ -383,14 +260,6 @@ def matToHdf5(srcFileName, dstFileName):
 	f.close()
 
 def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', bsAxis = 0):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-	"""
-	# pdb.set_trace()
 	images = batchSizeFirst(images, bsAxis)
 	if chOrder == 'channelsLast':
 		images = channelsFirstToLast(images)
@@ -401,7 +270,6 @@ def prepImageData(images, chOrder='channelsLast', resizeHeight=256, resizeWidth=
 	return images
 
 def im2Arr(path, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR'):
-	# pdb.set_trace()
 	import cv2
 	try:
 		image = cv2.imread(path)
@@ -409,18 +277,9 @@ def im2Arr(path, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, mean
 		image = prepImageData(image, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR')
 		return image
 	except:
-		# print("skipped")
 		return None
 
 def prepLabelData(labels, sourceType='uint', targetType='uint'):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-	
-	"""
 	batchSize = max(labels.shape)
 	if sourceType== 'uint' and targetType == 'uint':
 		labels = np.reshape(labels, (batchSize, ))
@@ -430,10 +289,14 @@ def prepLabelData(labels, sourceType='uint', targetType='uint'):
 		raise NotImplementedError
 	return labels
 
-def makeCIFAR10(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
-	"""
-	"""
-	# pdb.set_trace()
+def makeCIFAR10(srcFileName, dstFileName, printInfo = True, 
+				batchSize = 1000, 
+				chOrder='channelsLast', 
+				resizeHeight=256, 
+				resizeWidth=256, 
+				meanSubtractOrder='BGR', 
+				labelSourceType='uint', 
+				labelTargetType='uint'):
 	fSrc = h5py.File(srcFileName, 'r')
 	fDst = h5py.File(dstFileName, 'w')
 	datasets = [key for key in fSrc.keys() if '__' not in key]
@@ -444,7 +307,6 @@ def makeCIFAR10(srcFileName, dstFileName, printInfo = True, batchSize = 1000, ch
 		print("Processing Dataset -"+str(datasets[i]))
 		print("Total Samples - "+str(bs))
 		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
-			# pdb.set_trace()
 			if chOrder == 'channelsFirst':
 				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
 			elif chOrder == 'channelsLast':
@@ -468,8 +330,6 @@ def makeCIFAR10(srcFileName, dstFileName, printInfo = True, batchSize = 1000, ch
 	fDst.close()
 
 def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
-	"""
-	"""
 	pdb.set_trace()
 	fSrc = h5py.File(srcFile, 'r')
 	fDst = h5py.File(dstFile, 'w')
@@ -487,7 +347,6 @@ def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
 				data = fSrc[datasets[i]][j*batchSize:(j+1)*batchSize]
 				data = np.transpose(data, (0, 2, 3, 1))
 				fDst[newName][j*batchSize:(j+1)*batchSize, ...] = data
-			# del data
 		elif 'label' in datasets[i]:
 			newName = datasets[i][0:ind+1]+'labels'
 			data = fSrc[datasets[i]][:]
@@ -502,10 +361,14 @@ def cleanH5(srcFile, dstFile, chOrder = 'channelsLast', batchSize=1000):
 	fSrc.close()
 
 
-def makeNUS(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrder='channelsLast', resizeHeight=256, resizeWidth=256, meanSubtractOrder='BGR', labelSourceType='uint', labelTargetType='uint'):
-	"""
-	"""
-	# pdb.set_trace()
+def makeNUS(srcFileName, dstFileName, printInfo = True, 
+				batchSize = 1000, 
+				chOrder='channelsLast', 
+				resizeHeight=256, 
+				resizeWidth=256,
+				meanSubtractOrder='BGR', 
+				labelSourceType='uint', 
+				labelTargetType='uint'):
 	fSrc = h5py.File(srcFileName, 'r')
 	fDst = h5py.File(dstFileName, 'w')
 	datasets = [key for key in fSrc.keys() if '__' not in key]
@@ -516,7 +379,6 @@ def makeNUS(srcFileName, dstFileName, printInfo = True, batchSize = 1000, chOrde
 		print("Processing Dataset -"+str(datasets[i]))
 		print("Total Samples - "+str(bs))
 		if len(dShape) == 4 and np.max(fSrc[datasets[i]][:]) > 200:
-			# pdb.set_trace()
 			if chOrder == 'channelsFirst':
 				fDst.create_dataset(datasets[i], (bs, 3, resizeHeight, resizeWidth))
 			elif chOrder == 'channelsLast':
@@ -543,14 +405,6 @@ def getTagMatrix(excelFileName):
 	raise NotImplementedError
 
 def resizeImages(images, resizeHeight=256, resizeWidth = 256):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-	"""
-	# pdb.set_trace()
 	order = images.shape
 	ch = order.index(3)
 	if ch == 1:
@@ -558,7 +412,6 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	resizedImages = np.zeros((images.shape[0], resizeHeight, resizeWidth, 3))
 	for i in range(resizedImages.shape[0]):
 		resizedImages[i,:,:,:] = resize(images[i], (resizeHeight, resizeWidth))
-	# pdb.set_trace()
 	if np.max(resizedImages) <= 1:
 		resizedImages = 255.0*resizedImages
 	if ch == 1:
@@ -566,15 +419,7 @@ def resizeImages(images, resizeHeight=256, resizeWidth = 256):
 	return resizedImages
 
 def batchSizeFirst(images, bs=0):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-	"""
 	order = images.shape
-	# bs = np.argmax(order)
 	assert len(order) == 4
 	if bs == 3:
 		images = np.transpose(images, (3, 0, 1, 2))
@@ -585,14 +430,6 @@ def batchSizeFirst(images, bs=0):
 	return images
 
 def cropImages(images, cropHeight=227, cropWidth=227):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	order = images.shape
 	ch = order.index(3)
 	if ch == 1:
@@ -607,14 +444,6 @@ def cropImages(images, cropHeight=227, cropWidth=227):
 	return croppedImages
 
 def channelsFirstToLast(images):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	order = images.shape
 	ch = order.index(3)
 	if ch == 1:
@@ -622,14 +451,6 @@ def channelsFirstToLast(images):
 	return images
 
 def channelsLastToFirst(images):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	order = images.shape
 	ch = order.index(3)
 	if ch == 3:
@@ -637,14 +458,6 @@ def channelsLastToFirst(images):
 	return images
 
 def meanSubtract(images, sourceDataSet='IMAGENET', order='RGB'):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	chOrder = images.shape
 	ch = chOrder.index(3)	
 	if ch == 1:
@@ -664,28 +477,12 @@ def meanSubtract(images, sourceDataSet='IMAGENET', order='RGB'):
 
 
 def shuffleInUnison(images, labels):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	perm = np.random.permutation(images.shape[0])
 	images = images[perm]
 	labels = labels[perm]
 	return images, labels
 
 def emailSender(mystr, sendEmail=False):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	if sendEmail:
 		import smtplib
 		fromaddr = '****'
@@ -707,14 +504,6 @@ def emailSender(mystr, sendEmail=False):
 		server.quit()
 
 def checkIfWeightsAreNotLost(model_1, model_2, layerList):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	for i in range(len(layerList)):
 		sameWeights = False
 		weights1 = model_1.layers[layerList[i]].get_weights()[0]
@@ -732,23 +521,12 @@ def checkIfWeightsAreNotLost(model_1, model_2, layerList):
 	return sameWeights
 
 def getTotalWeights(weightsShape):
-	"""
-	Desc:
-
-	Args:
-
-	Returns:
-
-	"""
 	totalWeights = 1
 	for i in range(len(weightsShape)):
 		totalWeights = totalWeights*weightsShape[i]
 	return totalWeights
 
 def computeAccuracy(predictions, groundTruths):
-	"""
-	"""
-	# pdb.set_trace()
 	predictions = prepLabelData(predictions, sourceType='oneHot', targetType='uint')
 	groundTruths = prepLabelData(groundTruths, sourceType='uint', targetType='uint')
 	acc = np.sum((predictions == groundTruths))*100/predictions.shape[0]
@@ -757,13 +535,11 @@ def computeAccuracy(predictions, groundTruths):
 def loadJsonFile(fileName):
 	import json
 	f = open(fileName, 'r')
-	# pdb.set_trace()
 	allData = json.load(f)
 	f.close()
 	return allData
 
 def getTagVectorsForEachImage(data, imId=None, ind=None):
-	# pdb.set_trace()
 	if imId != None:
 		ind = [i for i,x in enumerate(data) if x[0] == imId]
 	elif ind != None:
@@ -779,10 +555,6 @@ def getSvd(S):
 	try:
 		u, e, v = la.svd(S, full_matrices=True)
 	except:
-		# import math
-		# pdb.set_trace()
-		# if np.isnan(S):
-		# print("True")
 		u=0
 		e=0
 		v=0
@@ -791,9 +563,6 @@ def getSvd(S):
 def makeTrainTestSplits(imageIds, labels, labelType = 'oneHot', nImagesPerClassTrain=500, nImagesPerClassTest = 100):
 	if labelType == 'oneHot':
 		nClasses = labels.shape[1]
-	#nTotalImages = nImagesPerClassTrain + nImagesPerClassTest
-	#totalImages = np.zeros((nClasses, nTotalImages), dtype='uint32')
-	#totallabels = np.zeros((nClasses, nTotalImages, nClasses))
 	nTrainImages = int(imageIds.shape[0]*0.7)
 	trainImages = imageIds[0:nTrainImages]
 	testImages = imageIds[nTrainImages:]
@@ -802,7 +571,6 @@ def makeTrainTestSplits(imageIds, labels, labelType = 'oneHot', nImagesPerClassT
 
 	trainSetImageIds = np.zeros((nClasses, nImagesPerClassTrain), dtype='uint32')
 	trainSetLabels = np.zeros((nClasses, nImagesPerClassTrain, nClasses))
-	#pdb.set_trace()
 	for i in range(nClasses):
 		consider = trainLabels[:, i] == 1
 		curImageIds = trainImages[consider]
@@ -813,7 +581,6 @@ def makeTrainTestSplits(imageIds, labels, labelType = 'oneHot', nImagesPerClassT
 
 	testSetImageIds = np.zeros((nClasses, nImagesPerClassTest), dtype='uint32')
 	testSetLabels = np.zeros((nClasses, nImagesPerClassTest, nClasses))
-	#pdb.set_trace()
 	for i in range(nClasses):
 		consider = testLabels[:, i] == 1
 		curImageIds = testImages[consider]
@@ -843,3 +610,266 @@ def removeOutliers(vecs, threshold):
 	if np.sum(np.isnan(meanVector))!=0:
 		pdb.set_trace()
 	return meanVector
+
+def readImageBatch(imagesPaths, folderName, resizeHeight=256, resizeWidth=256, cropHeight=227, cropWidth=227, sourceDataSet='IMAGENET', orderOfChannels='BGR'):
+	'''
+	Inputs:
+	Outputs:
+	'''
+	imagesBatch = np.zeros((len(imagesPaths), 3, cropHeight, cropWidth))
+	extracedImages = []
+	counter = 0
+	for i in range(len(imagesPaths)):
+		try:
+			image = readImage(folderName + imagesPaths[i])
+			#pdb.set_trace()
+			if np.sum(image != None):
+				imagesBatch[counter,:,:,:] = image[0,:,:,:]
+				counter = counter + 1
+				extracedImages.append((i, imagesPaths[i]))
+		except:
+			pass
+	imagesBatch = imagesBatch[0:counter,:,:,:]
+	return imagesBatch, extracedImages
+		
+def getTriplets(nSamples, labels, batch_size):
+	triplets = np.zeros((batch_size, 3), dtype='int32')
+	ind = 0
+	toFill = np.sum(np.sum(triplets, axis=-1)==0)
+	while (toFill != 0):
+		contextSamples = np.random.permutation(nSamples)
+		contextSamples = contextSamples[0:batch_size]
+		posSamples = np.random.permutation(nSamples)
+		posSamples = posSamples[0:batch_size]
+		negSamples = np.random.permutation(nSamples)
+		negSamples = negSamples[0:batch_size]	
+		L = labels[contextSamples]
+		L_plus = labels[posSamples]
+		L_minus = labels[negSamples]
+		d_plus = np.reshape(np.sum(np.abs(L - L_plus), axis=1), (batch_size))
+		d_minus = np.reshape(np.sum(np.abs(L - L_minus), axis=1), (batch_size))
+		atleastOneCommonLabel_plus = np.sum(np.logical_and(L, L_plus), axis=1)
+		atleastOneCommonLabel_minus = np.sum(np.logical_and(L, L_minus), axis=1)
+		correct = np.logical_and(d_plus < d_minus, atleastOneCommonLabel_plus)
+		reverse = np.logical_and(d_minus < d_plus, atleastOneCommonLabel_minus)
+		nCorrect = np.sum(correct)
+		nReverse = np.sum(reverse)
+		triplets[ind:ind+nCorrect,0] = contextSamples[correct][0:toFill]
+		triplets[ind:ind+nCorrect,1] = posSamples[correct][0:toFill]
+		triplets[ind:ind+nCorrect,2] = negSamples[correct][0:toFill]
+		ind = ind + nCorrect
+		toFill = np.sum(np.sum(triplets, axis=-1)==0)
+		triplets[ind:ind+nReverse,0] = contextSamples[reverse][0:toFill]
+		triplets[ind:ind+nReverse,1] = negSamples[reverse][0:toFill]
+		triplets[ind:ind+nReverse,2] = posSamples[reverse][0:toFill]
+		ind = ind + nReverse
+		toFill = np.sum(np.sum(triplets, axis=-1)==0)
+	return triplets
+
+def readImage(imageName, 
+			libraryName='cv2', resizeHeight=256, resizeWidth=256, cropHeight=227, cropWidth=227, sourceDataSet='IMAGENET', orderOfChannels='BGR'):
+	'''
+    reads the image, resizes, crops and aligns channels with respect to the order inputted
+
+    Inputs: 
+        The path to the image
+
+    Returns: 
+        A 4 D numpy array of shape [Batch Size(which is 1 here), Channels, Image Height, Image Width]
+    '''
+	try:
+	    image = cv2.imread(imageName)
+	    image = np.transpose(image, (2, 0, 1))
+	    image = np.expand_dims(image, axis=0)
+	    image = resizeImages(image, resizeHeight, resizeWidth)
+	    image = meanSubtract(image, sourceDataSet, orderOfChannels)
+	    image = cropImages(image, cropHeight, cropWidth)
+	except:
+		print("skipped reading image")
+		image = None
+	return image
+	
+
+def getData(dataset='CIFAR10', channels_last=True):
+	if dataset == 'CIFAR10':
+		#This matrix is made by the MATLAB/MatConvNet/DPSH_IJCAI_ version 1.0_beta23 code. As per the code, the data should be in RGB format(verified visually) 
+		data = sio.loadmat('./datasets/cifar-10.mat')
+
+	trainData = data['train_data']
+	trainLabels = data['train_L']
+	queryData = data['test_data']
+	queryLabels = data['test_L']
+	galleryData = data['data_set']
+	galleryLabels = data['dataset_L']
+	if channels_last:
+		trainData = np.transpose(trainData, (3, 0, 1, 2))
+		queryData = np.transpose(queryData, (3, 0, 1, 2))
+		galleryData = np.transpose(galleryData, (3, 0, 1, 2))
+	else:
+		raise NotImplementedError
+	return trainData, trainLabels, queryData, queryLabels, galleryData, galleryLabels
+
+def makeDataSet(imageIds, labels, labelType = 'oneHot', nImagesPerClassTrain=500, nImagesPerClassTest = 100):
+	if labelType == 'oneHot':
+		nClasses = labels.shape[1]
+	nTrainImages = int(imageIds.shape[0]*0.7)
+	trainImages = imageIds[0:nTrainImages]
+	testImages = imageIds[nTrainImages:]
+	trainLabels = labels[0:nTrainImages]
+	testLabels = labels[nTrainImages:]
+
+	trainSetImageIds = np.zeros((nClasses, nImagesPerClassTrain), dtype='uint32')
+	trainSetLabels = np.zeros((nClasses, nImagesPerClassTrain, nClasses))
+	for i in range(nClasses):
+		consider = trainLabels[:, i] == 1
+		curImageIds = trainImages[consider]
+		curLabels = trainLabels[consider,:]
+		curImageIds, curLabels = shuffleInUnison(curImageIds, curLabels)
+		trainSetImageIds[i,:] = np.reshape(curImageIds[0:nImagesPerClassTrain], (nImagesPerClassTrain,))
+		trainSetLabels[i, :, :] = curLabels[0:nImagesPerClassTrain]
+
+	testSetImageIds = np.zeros((nClasses, nImagesPerClassTest), dtype='uint32')
+	testSetLabels = np.zeros((nClasses, nImagesPerClassTest, nClasses))
+	for i in range(nClasses):
+		consider = testLabels[:, i] == 1
+		curImageIds = testImages[consider]
+		curLabels = testLabels[consider,:]
+		curImageIds, curLabels = shuffleInUnison(curImageIds, curLabels)
+		testSetImageIds[i,:] = np.reshape(curImageIds[0:nImagesPerClassTest], (nImagesPerClassTest,))
+		testSetLabels[i, :, :] = curLabels[0:nImagesPerClassTest]
+	
+	trainSetImageIds = np.reshape(trainSetImageIds, (nClasses*nImagesPerClassTrain,))
+	trainSetLabels = np.reshape(trainSetLabels, (nClasses*nImagesPerClassTrain, nClasses))
+	testSetImageIds = np.reshape(testSetImageIds, (nClasses*nImagesPerClassTest,))
+	testSetLabels = np.reshape(testSetLabels, (nClasses*nImagesPerClassTest,nClasses))
+	return trainSetImageIds, trainSetLabels, testSetImageIds, testSetLabels
+
+def generatePairs(images, labels, batch_size):
+	n_classes = np.unique(labels).shape[0]
+	images_classwise = np.zeros((n_classes, images.shape[0]/n_classes, images.shape[1], images.shape[2], images.shape[3]))
+	for i in range(n_classes):
+		curClass = labels == i
+		images_classwise[i,:,:,:,:] = images[curClass,:,:,:]
+	randomLabels = np.random.randint(10, size=batch_size)
+	simLabels = randomLabels[0:batch_size/2]
+	dissimLabels = randomLabels[batch_size/2:batch_size]
+	imagePairs = []
+	similarity = []
+	queryLabs = []
+	databaseLabs = []
+	for i in range(len(simLabels)):
+		randomImgNums = np.random.randint(images.shape[0]/n_classes, size=2)
+		imagePairs.append([images_classwise[simLabels[i], randomImgNums[0], :, :, :], images_classwise[simLabels[i], randomImgNums[1], :, :, :]])
+		similarity.append(1)
+		queryLabs.append(simLabels[i])
+		databaseLabs.append(simLabels[i])
+	for i in range(len(dissimLabels)):
+		randomImgNums = np.random.randint(images.shape[0]/n_classes, size=2)
+		secondImageClass = dissimLabels[i]
+		while(secondImageClass==dissimLabels[i]):
+			secondImageClass = np.random.randint(n_classes)
+		imagePairs.append([images_classwise[dissimLabels[i], randomImgNums[0], :, :, :], images_classwise[secondImageClass, randomImgNums[1], :, :, :]])
+		similarity.append(0)
+		queryLabs.append(dissimLabels[i])
+		databaseLabs.append(secondImageClass)
+	imagePairs = np.array(imagePairs)
+	similarity = np.array(similarity)
+	return imagePairs, similarity, np.asarray(queryLabs), np.asarray(databaseLabs)
+
+def prepareData(dataset='CIFAR10'):
+	trainData, trainLabels, queryData, queryLabels, galleryData, galleryLabels = getData(dataset=dataset)
+	return trainData, trainLabels, queryData, queryLabels, galleryData, galleryLabels
+
+def multiLabelGetVectors(data, dim=300, nClasses=81, nTags=1000, method='mean'):
+	vecMat = np.zeros((len(data), dim))
+	labels = np.zeros((len(data), nClasses))
+	images = np.zeros((len(data), 1))
+	tags = np.zeros((len(data), nTags))
+	for i in range(len(data)):
+		curRec = data[i]
+		curVector = np.zeros((300, ))
+		images[i] = curRec[0]
+		labels[i] = curRec[1]
+		if method == 'mean':
+			for j in range(len(curRec[2])):
+				curVector = curVector + curRec[2][j]
+				tags[i][int(curRec[2][j][1])] = 1
+			vecMat[i][:] = curVector/float(len(curRec[2]))
+		elif method == 'idf':
+			avg = 0
+			for j in range(len(curRec[2])):
+				curVector = curVector +[x* curRec[2][j][2] for x in curRec[2][j][0]]
+				tags[i][int(curRec[2][j][1])] = 1
+				avg = avg + curRec[2][j][2]
+			vecMat[i][:] = curVector/float(avg)
+		elif method == 'minFreq':
+			minFreq = 100
+			minFrqIndex = -100
+			for j in range(len(curRec[2])):
+				if curRec[2][j][2] < minFreq:
+					tags[i][int(curRec[2][j][1])] = 1
+					minFreq = curRec[2][j][2]
+					minFreqIndex = j
+			vecMat[i][:] = curRec[2][minFreqIndex][0]
+		elif method == 'cutFreq':
+			avg = 0.00001
+			for j in range(len(curRec[2])):
+				if curRec[2][j][2] > 5.3 and curRec[2][j][2] < 8.2:
+					curVector = curVector +[x* curRec[2][j][2] for x in curRec[2][j][0]]
+					tags[i][int(curRec[2][j][1])] = 1
+					avg = avg + curRec[2][j][2]
+			vecMat[i][:] = curVector/float(avg)
+	images = np.array(images, dtype='uint32')			
+	return (images, labels, vecMat, tags)
+
+def multiLabelGetVectorsNUS(data, dim=300, nClasses=81, nTags=1000, method='mean'):
+	vecMat = np.zeros((len(data), dim))
+	labels = np.zeros((len(data), nClasses))
+	images = np.zeros((len(data), 1))
+	tags = []
+	for i in range(len(data)):
+		curRec = data[i]
+
+		curVector = np.zeros((300, ))
+		images[i] = curRec[0]
+		labels[i] = curRec[1]
+		if method == 'mean':
+			for j in range(len(curRec[2])):
+				curVector = curVector + curRec[2][j]
+			vecMat[i][:] = curVector/float(len(curRec[2]))
+			tags.append(curRec[3])
+		elif method == 'idf':
+			avg = 0
+			for j in range(len(curRec[2])):
+				curVector = curVector +[x* curRec[2][j][2] for x in curRec[2][j][0]]
+				avg = avg + curRec[2][j][2]
+			vecMat[i][:] = curVector/float(avg)
+		elif method == 'minFreq':
+			minFreq = 100
+			minFrqIndex = -100
+			for j in range(len(curRec[2])):
+				if curRec[2][j][2] < minFreq:
+					minFreq = curRec[2][j][2]
+					minFreqIndex = j
+			vecMat[i][:] = curRec[2][minFreqIndex][0]
+		elif method == 'cutFreq':
+			avg = 0.00001
+			for j in range(len(curRec[2])):
+				if curRec[2][j][2] > 5.3 and curRec[2][j][2] < 8.2:
+					curVector = curVector +[x* curRec[2][j][2] for x in curRec[2][j][0]]
+					avg = avg + curRec[2][j][2]
+			vecMat[i][:] = curVector/float(avg)
+	images = np.array(images, dtype='uint32')			
+	return (images, labels, vecMat, tags)
+
+def multiLabelGetVectorsDelete(data, dim=300, nClasses=81, nTags=1000, method='mean'):
+	vecMat = np.zeros((len(data), dim))
+	labels = np.zeros((len(data), nClasses))
+	images = np.zeros((len(data), 1))
+	tags = np.zeros((len(data), nTags))
+	for i in range(len(data)):
+		curRec = data[i]
+		images[i] = curRec[0]
+		labels[i] = curRec[1]
+	images = np.array(images, dtype='uint32')			
+	return (images, labels)
